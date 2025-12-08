@@ -1,0 +1,4 @@
+# SQL Injection Detection Rules
+
+alert http any any -> any any (msg:"Potential SQL Injection - UNION SELECT"; content:"UNION"; http_uri; content:"SELECT"; http_uri; sid:1000001;)
+alert http any any -> any any (msg:"Potential SQL Injection - OR 1=1"; content:"OR"; http_uri; content:"1=1"; http_uri; sid:1000002;)
