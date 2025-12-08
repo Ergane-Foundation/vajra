@@ -8,7 +8,7 @@
 
 Legacy firewalls are blind to modern threats. With **80% of web traffic now encrypted (TLS 1.3)** and the rise of IoT, static rules and simple signature matching are obsolete.
 
-**Sentinel-X** is a proposed Next-Generation Firewall (NGFW) designed for the **Zero Trust** era. It leverages **Deep Learning (1D-CNNs, Transformers)** and **Edge Computing (NVIDIA Jetson)** to inspect encrypted traffic *without decryption*, enforce micro-segmentation, and detect "Low & Slow" attacks that traditional IDS miss.
+**Vajra** is a proposed Next-Generation Firewall (NGFW) designed for the **Zero Trust** era. It leverages **Deep Learning (1D-CNNs, Transformers)** and **Edge Computing (NVIDIA Jetson)** to inspect encrypted traffic *without decryption*, enforce micro-segmentation, and detect "Low & Slow" attacks that traditional IDS miss.
 
 -----
 
