@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """
-Packet Inspector - Network Packet Analysis (Solo, Not Yet Integrated)
+Packet Inspector - Network Packet Analysis with Suricata Integration
 
 Captures and inspects network packets for threat detection.
-Uses Scapy for deep packet inspection and feature extraction.
+Uses Scapy for deep packet inspection and Suricata for network flows.
 """
 
 import json
 import time
 import logging
 import signal
+import threading
+from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from collections import defaultdict
 
 # Scapy imports (optional for first prototype)
@@ -30,19 +32,24 @@ logger = logging.getLogger("packet_inspector")
 
 
 class PacketInspector:
-    """Network packet inspection engine"""
+    """Network packet inspection engine with Suricata integration"""
 
-    def __init__(self, interface: str = "eth0"):
+    def __init__(self, interface: str = "eth0", eve_json_path: str = "logs/eve.json"):
         self.interface = interface
+        self.eve_json_path = Path(eve_json_path)
         self.running = False
         self.stats = {
             'total_packets': 0,
             'tcp_packets': 0,
             'udp_packets': 0,
             'icmp_packets': 0,
-            'suspicious_packets': 0
+            'suspicious_packets': 0,
+            'suricata_flows': 0,
+            'suricata_alerts': 0
         }
+        self.suricata_thread = None
         logger.info(f"Packet Inspector initialized on interface: {interface}")
+        logger.info(f"Suricata eve.json: {eve_json_path}")
 
     def _calculate_entropy(self, data: bytes) -> float:
         """Calculate Shannon entropy of payload data"""
@@ -194,19 +201,131 @@ class PacketInspector:
         logger.info("Packet capture stopped")
         self.print_stats()
 
+    def watch_suricata_eve(self):
+        """Monitor Suricata eve.json for flows and alerts"""
+        position = 0
+        logger.info(f"Starting Suricata eve.json monitor: {self.eve_json_path}")
+        
+        while self.running:
+            try:
+                if not self.eve_json_path.exists():
+                    time.sleep(2)
+                    continue
+                
+                current_size = self.eve_json_path.stat().st_size
+                
+                # Handle file rotation
+                if current_size < position:
+                    position = 0
+                
+                if current_size > position:
+                    with open(self.eve_json_path, 'r') as f:
+                        f.seek(position)
+                        
+                        for line in f:
+                            if not self.running:
+                                break
+                            
+                            try:
+                                event = json.loads(line.strip())
+                                self._process_suricata_event(event)
+                            except json.JSONDecodeError:
+                                pass
+                        
+                        position = f.tell()
+                
+                time.sleep(0.5)
+            
+            except Exception as e:
+                logger.error(f"Error watching eve.json: {e}")
+                time.sleep(1)
+    
+    def _process_suricata_event(self, event: Dict[str, Any]):
+        """Process a Suricata event from eve.json"""
+        event_type = event.get('event_type', '')
+        
+        if event_type == 'flow':
+            self.stats['suricata_flows'] += 1
+            self._log_flow(event)
+        
+        elif event_type == 'alert':
+            self.stats['suricata_alerts'] += 1
+            self._log_alert(event)
+        
+        elif event_type == 'dns':
+            self._log_dns(event)
+    
+    def _log_flow(self, event: Dict[str, Any]):
+        """Log Suricata flow"""
+        src = f"{event.get('src_ip', '?')}:{event.get('src_port', '?')}"
+        dst = f"{event.get('dest_ip', '?')}:{event.get('dest_port', '?')}"
+        proto = event.get('proto', '?')
+        app_proto = event.get('app_proto', 'unknown')
+        
+        flow = event.get('flow', {})
+        bytes_to = flow.get('bytes_toserver', 0)
+        bytes_from = flow.get('bytes_toclient', 0)
+        
+        logger.debug(f"FLOW: {src} → {dst} ({proto}/{app_proto}) "
+                    f"↑{bytes_to}B ↓{bytes_from}B")
+    
+    def _log_alert(self, event: Dict[str, Any]):
+        """Log Suricata alert"""
+        src = f"{event.get('src_ip', '?')}:{event.get('src_port', '?')}"
+        dst = f"{event.get('dest_ip', '?')}:{event.get('dest_port', '?')}"
+        alert = event.get('alert', {})
+        signature = alert.get('signature', 'Unknown')
+        severity = alert.get('severity', 3)
+        
+        logger.warning(f"🚨 SURICATA ALERT: {src} → {dst} | {signature} (severity: {severity})")
+    
+    def _log_dns(self, event: Dict[str, Any]):
+        """Log DNS query"""
+        dns = event.get('dns', {})
+        query = dns.get('rrname', '?')
+        qtype = dns.get('rrtype', '?')
+        src_ip = event.get('src_ip', '?')
+        
+        logger.debug(f"DNS: {src_ip} query {query} ({qtype})")
+    
+    def start_with_suricata(self, count: int = 0, timeout: int = None):
+        """Start packet capture with Suricata monitoring
+        
+        Args:
+            count: Number of packets to capture (0 = infinite)
+            timeout: Timeout in seconds (None = no timeout)
+        """
+        self.running = True
+        
+        # Start Suricata monitor in background thread
+        self.suricata_thread = threading.Thread(
+            target=self.watch_suricata_eve,
+            daemon=True
+        )
+        self.suricata_thread.start()
+        logger.info("Started Suricata monitor thread")
+        
+        # Start packet capture
+        self.start_capture(count=count, timeout=timeout)
+
 
 def main():
     """Main entry point"""
     import argparse
     
-    parser = argparse.ArgumentParser(description='Packet Inspector - Network packet analysis')
+    parser = argparse.ArgumentParser(description='Packet Inspector - Network packet analysis with Suricata')
     parser.add_argument('-i', '--interface', default='eth0', help='Network interface to capture on')
     parser.add_argument('-c', '--count', type=int, default=0, help='Number of packets to capture (0 = infinite)')
     parser.add_argument('-t', '--timeout', type=int, default=None, help='Capture timeout in seconds')
+    parser.add_argument('-e', '--eve-json', default='logs/eve.json', help='Path to Suricata eve.json')
+    parser.add_argument('--suricata', action='store_true', help='Enable Suricata integration')
     
     args = parser.parse_args()
     
-    inspector = PacketInspector(interface=args.interface)
+    inspector = PacketInspector(
+        interface=args.interface,
+        eve_json_path=args.eve_json
+    )
     
     # Handle Ctrl+C gracefully
     def signal_handler(sig, frame):
@@ -216,7 +335,12 @@ def main():
     
     signal.signal(signal.SIGINT, signal_handler)
     
-    inspector.start_capture(count=args.count, timeout=args.timeout)
+    if args.suricata:
+        logger.info("Starting with Suricata integration...")
+        inspector.start_with_suricata(count=args.count, timeout=args.timeout)
+    else:
+        logger.info("Starting Scapy-only mode...")
+        inspector.start_capture(count=args.count, timeout=args.timeout)
 
 
 if __name__ == "__main__":
