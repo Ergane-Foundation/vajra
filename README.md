@@ -63,6 +63,17 @@ Network intrusion detection signatures:
 - Protocol-specific rules
 - Custom threat signatures
 
+### Suricata IPS Engine
+
+Suricata inline intrusion prevention system (IPS) for real-time threat blocking:
+
+- **Configuration**: `suricata.yaml` - IPS mode with NFQUEUE for inline packet filtering
+- **Rules**: `rules/local.rules` - DROP rules for SQL injection, XSS, path traversal, and web attacks
+- **Detection**: Monitors HTTP, DNS, TLS, SSH, FTP, and SMTP protocols
+- **Outputs**: EVE JSON format logging with alerts, drops, flows, and anomalies
+- **Response**: Automatically blocks malicious traffic inline using Suricata's DROP action
+- **Classification**: `classification.config` - Alert priority and type definitions
+
 ## Quick Start
 
 ```bash

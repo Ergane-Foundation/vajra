@@ -1,4 +1,50 @@
-# SQL Injection Detection Rules
+# NGFW IPS Rules - DROP action for inline blocking
+# All rules tested and working with Suricata 8.x
 
-alert http any any -> any any (msg:"Potential SQL Injection - UNION SELECT"; content:"UNION"; http_uri; content:"SELECT"; http_uri; sid:1000001;)
-alert http any any -> any any (msg:"Potential SQL Injection - OR 1=1"; content:"OR"; http_uri; content:"1=1"; http_uri; sid:1000002;)
+# ==========================================
+# SQL INJECTION - DROP
+# ==========================================
+
+drop http any any -> any any (msg:"NGFW DROP SQL Injection - UNION SELECT"; flow:established,to_server; http.uri; content:"union"; nocase; content:"select"; nocase; distance:0; within:15; classtype:web-application-attack; sid:2000001; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP SQL Injection - Single Quote"; flow:established,to_server; http.uri; content:"%27"; classtype:web-application-attack; sid:2000002; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP SQL Injection - Double Dash"; flow:established,to_server; http.uri; content:"--"; classtype:web-application-attack; sid:2000004; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP SQL Injection - OR 1 equals 1"; flow:established,to_server; http.uri; content:"or"; nocase; content:"1=1"; distance:0; within:10; classtype:web-application-attack; sid:2000005; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP SQL Injection - SLEEP function"; flow:established,to_server; http.uri; content:"sleep("; nocase; classtype:web-application-attack; sid:2000006; rev:1;)
+
+# ==========================================
+# XSS - DROP
+# ==========================================
+
+drop http any any -> any any (msg:"NGFW DROP XSS - Script Tag"; flow:established,to_server; http.uri; content:"<script"; nocase; classtype:web-application-attack; sid:2000010; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP XSS - Script Encoded"; flow:established,to_server; http.uri; content:"%3cscript"; nocase; classtype:web-application-attack; sid:2000011; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP XSS - onload handler"; flow:established,to_server; http.uri; content:"onload="; nocase; classtype:web-application-attack; sid:2000012; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP XSS - onerror handler"; flow:established,to_server; http.uri; content:"onerror="; nocase; classtype:web-application-attack; sid:2000013; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP XSS - javascript protocol"; flow:established,to_server; http.uri; content:"javascript:"; nocase; classtype:web-application-attack; sid:2000014; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP XSS - IMG tag"; flow:established,to_server; http.uri; content:"<img"; nocase; classtype:web-application-attack; sid:2000015; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP XSS - SVG tag"; flow:established,to_server; http.uri; content:"<svg"; nocase; classtype:web-application-attack; sid:2000016; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP XSS - onclick handler"; flow:established,to_server; http.uri; content:"onclick="; nocase; classtype:web-application-attack; sid:2000017; rev:1;)
+
+# ==========================================
+# PATH TRAVERSAL - DROP
+# ==========================================
+
+drop http any any -> any any (msg:"NGFW DROP Path Traversal - dot dot slash"; flow:established,to_server; http.uri; content:"../"; classtype:web-application-attack; sid:2000020; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Path Traversal - Encoded"; flow:established,to_server; http.uri; content:"%2e%2e"; nocase; classtype:web-application-attack; sid:2000021; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Path Traversal - etc passwd"; flow:established,to_server; http.uri; content:"etc/passwd"; nocase; classtype:web-application-attack; sid:2000022; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Path Traversal - etc shadow"; flow:established,to_server; http.uri; content:"etc/shadow"; nocase; classtype:web-application-attack; sid:2000023; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Path Traversal - Windows style"; flow:established,to_server; http.uri; content:"..\\"; classtype:web-application-attack; sid:2000024; rev:1;)

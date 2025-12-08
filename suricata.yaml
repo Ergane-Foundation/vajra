@@ -1,0 +1,141 @@
+%YAML 1.1
+---
+# Suricata IPS Mode Configuration for Linux
+# Uses NFQUEUE for inline packet filtering
+
+vars:
+  address-groups:
+    HOME_NET: "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]"
+    EXTERNAL_NET: "any"
+    HTTP_SERVERS: "$HOME_NET"
+    SQL_SERVERS: "$HOME_NET"
+    DNS_SERVERS: "$HOME_NET"
+    TELNET_SERVERS: "$HOME_NET"
+    SSH_SERVERS: "$HOME_NET"
+    SMTP_SERVERS: "$HOME_NET"
+  port-groups:
+    HTTP_PORTS: "80,8080,443"
+    SSH_PORTS: 22
+    FTP_PORTS: 21
+    DNS_PORTS: 53
+
+default-log-dir: ./logs
+
+stats:
+  enabled: yes
+  interval: 10
+
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+      community-id: true
+      types:
+        - alert:
+            tagged-packets: yes
+        - drop:
+            alerts: yes
+        - http:
+            extended: yes
+        - dns
+        - tls:
+            extended: yes
+        - flow
+        - anomaly:
+            enabled: yes
+
+  - fast:
+      enabled: yes
+      filename: fast.log
+
+  - drop:
+      enabled: yes
+      filename: drop.log
+
+  - stats:
+      enabled: yes
+      filename: stats.log
+
+# NFQUEUE mode for IPS - packets go through Suricata
+nfqueue:
+  mode: accept
+  fail-open: yes
+  
+# Also support af-packet for IDS fallback
+af-packet:
+  - interface: enp0s5
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+
+pcap:
+  - interface: enp0s5
+
+# Rules
+default-rule-path: .
+rule-files:
+  - rules/local.rules
+
+classification-file: classification.config
+reference-config-file: reference.config
+
+# App layer protocols
+app-layer:
+  protocols:
+    http:
+      enabled: yes
+      libhtp:
+        default-config:
+          personality: IDS
+          request-body-limit: 100kb
+          response-body-limit: 100kb
+    tls:
+      enabled: yes
+    dns:
+      enabled: yes
+    ssh:
+      enabled: yes
+    ftp:
+      enabled: yes
+    smtp:
+      enabled: yes
+
+# Detection
+detect:
+  profile: medium
+  sgh-mpm-context: auto
+  inspection-recursion-limit: 3000
+
+# IPS specific settings
+stream:
+  memcap: 128mb
+  checksum-validation: no
+  inline: auto
+
+flow:
+  memcap: 128mb
+
+host:
+  memcap: 32mb
+
+defrag:
+  memcap: 32mb
+
+logging:
+  default-log-level: notice
+  outputs:
+    - console:
+        enabled: yes
+    - file:
+        enabled: yes
+        level: info
+        filename: suricata.log
+
+coredump:
+  max-dump: unlimited
+
+host-mode: auto
+
+unix-command:
+  enabled: no
