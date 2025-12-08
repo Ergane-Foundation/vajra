@@ -7,15 +7,34 @@ Handles automated response to security threats including:
 - Alert processing and severity evaluation
 - Report generation
 - Action logging
+- AI-powered dynamic rule generation using Google Gemini
+
+Features:
+- Automated IP blocking
+- Threat severity evaluation
+- Security report generation
+- Gemini AI-based Suricata rule generation
+- Rule validation and deployment
+- Comprehensive audit logging
 """
 
 import json
 import logging
 import subprocess
 import shutil
+import os
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
+from dataclasses import dataclass, asdict
+from enum import Enum
+
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,6 +42,321 @@ logging.basicConfig(
 )
 logger = logging.getLogger("soar_engine")
 
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+# Suricata paths
+SURICATA_RULES_PATH = Path("rules/local.rules")
+SURICATA_BINARY = Path("/usr/bin/suricata")
+
+# Gemini configuration
+GEMINI_MODEL_NAME = "gemini-2.0-flash-exp"
+RULE_SID_START = 1000001
+
+# Audit paths
+RULES_AUDIT_LOG = Path("logs/rules_audit.json")
+RULES_STATE_FILE = Path("logs/rules_state.json")
+
+
+# ============================================================================
+# Data Classes & Enums
+# ============================================================================
+
+class ThreatSeverity(Enum):
+    """Threat severity levels"""
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class RuleAction(Enum):
+    """Suricata rule actions"""
+    DROP = "drop"
+    REJECT = "reject"
+    ALERT = "alert"
+    PASS = "pass"
+
+
+@dataclass
+class ThreatContext:
+    """Input context for AI rule generation"""
+    severity: ThreatSeverity
+    threat_type: str  # e.g., "SQL_INJECTION", "XSS", "DDoS"
+    payload: str  # Raw threat payload or description
+    source_ip: Optional[str] = None
+    dest_ip: Optional[str] = None
+    dest_port: Optional[int] = None
+    protocol: str = "tcp"
+    additional_context: Optional[str] = None
+
+    def to_prompt(self) -> str:
+        """Convert threat context to AI prompt"""
+        return f"""
+Generate a Suricata 6.0+ IDS rule for defensive network security purposes.
+
+THREAT INFORMATION:
+Type: {self.threat_type}
+Severity: {self.severity.value.upper()}
+Protocol: {self.protocol.upper()}
+
+NETWORK ACTIVITY DETAILS:
+{self.payload}
+
+{f'Source IP: {self.source_ip}' if self.source_ip else ''}
+{f'Destination IP: {self.dest_ip}' if self.dest_ip else ''}
+{f'Destination Port: {self.dest_port}' if self.dest_port else ''}
+{f'Additional Context: {self.additional_context}' if self.additional_context else ''}
+
+RULE REQUIREMENTS:
+1. Action: 'drop' or 'alert'
+2. SID >= {RULE_SID_START}
+3. Fields: msg, classtype, rev, metadata
+4. Match patterns specific to this threat
+5. Use appropriate content matching and flow analysis
+
+OUTPUT INSTRUCTIONS:
+Provide only the Suricata rule, no explanations or code blocks.
+"""
+
+
+@dataclass
+class GeneratedRule:
+    """Generated Suricata rule metadata"""
+    rule_text: str
+    sid: int
+    msg: str
+    classtype: str
+    action: str
+    threat_severity: ThreatSeverity
+    timestamp: str
+    generated_by_ai: bool = True
+    validated: bool = False
+    deployed: bool = False
+
+
+@dataclass
+class AuditEntry:
+    """Rule deployment audit trail"""
+    timestamp: str
+    action: str  # "generated", "validated", "deployed"
+    rule_sid: int
+    rule_msg: str
+    status: str  # "success", "failed"
+    error_message: Optional[str] = None
+    operator: str = "ai_system"
+
+
+# ============================================================================
+# AI Rule Generator
+# ============================================================================
+
+class AIRuleGenerator:
+    """Generates Suricata rules using Google Gemini AI"""
+
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
+
+        if not self.api_key:
+            logger.warning(
+                "GOOGLE_API_KEY not found. AI rule generation will be disabled. "
+                "Set it via: export GOOGLE_API_KEY='your-api-key'"
+            )
+            self.model = None
+            self.next_sid = RULE_SID_START
+            return
+
+        if not GEMINI_AVAILABLE:
+            logger.warning(
+                "google-generativeai not installed. "
+                "Install with: pip install google-generativeai"
+            )
+            self.model = None
+            self.next_sid = RULE_SID_START
+            return
+
+        try:
+            genai.configure(api_key=self.api_key)
+            self.model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+            logger.info(f"✓ Gemini AI configured: {GEMINI_MODEL_NAME}")
+        except Exception as e:
+            logger.error(f"Gemini initialization failed: {e}")
+            self.model = None
+
+        self.next_sid = self._get_next_sid()
+
+    def generate(self, threat: ThreatContext) -> Optional[GeneratedRule]:
+        """
+        Generate a Suricata rule from threat context
+
+        Args:
+            threat: ThreatContext with threat details
+
+        Returns:
+            GeneratedRule object or None if generation failed
+        """
+        if not self.model:
+            logger.warning("Gemini AI not available, using fallback rule generation")
+            return self._generate_fallback_rule(threat)
+
+        prompt = threat.to_prompt()
+
+        logger.info(f"Generating AI rule for threat: {threat.threat_type}")
+
+        try:
+            response = self.model.generate_content(
+                prompt,
+                generation_config={
+                    "temperature": 0.2,  # Low randomness for security-critical output
+                    "top_p": 0.9,
+                    "top_k": 40,
+                    "max_output_tokens": 500,
+                }
+            )
+
+            # Check if response was blocked or empty
+            if not response.text or response.text.strip() == "":
+                logger.warning(f"AI response empty, using fallback rule for {threat.threat_type}")
+                return self._generate_fallback_rule(threat)
+
+            rule_text = response.text.strip()
+
+            # Clean up markdown if present
+            rule_text = rule_text.replace("```suricata", "").replace("```", "").strip()
+
+            if not rule_text:
+                logger.error("AI returned empty rule")
+                return self._generate_fallback_rule(threat)
+
+            # Parse rule to extract metadata
+            rule_obj = self._parse_rule(rule_text, threat.severity)
+
+            if not rule_obj:
+                logger.error("Failed to parse generated rule")
+                return self._generate_fallback_rule(threat)
+
+            logger.info(f"✓ AI rule generated: SID {rule_obj.sid} - {rule_obj.msg}")
+            return rule_obj
+
+        except Exception as e:
+            logger.error(f"AI rule generation failed: {e}")
+            return self._generate_fallback_rule(threat)
+
+    def _generate_fallback_rule(self, threat: ThreatContext) -> GeneratedRule:
+        """Generate a basic fallback rule when AI fails"""
+        sid = self.next_sid
+        self.next_sid += 1
+
+        # Create a basic rule based on threat type
+        threat_type_to_pattern = {
+            "SQL_INJECTION": "content:\"'\"; http_uri; content:\"OR\"; http_uri;",
+            "XSS": "content:\"<script\"; http_uri;",
+            "PATH_TRAVERSAL": "content:\"../\"; http_uri;",
+            "DDOS": "flags:S; threshold:type both,track by_src,count 100,seconds 10;",
+            "PORT_SCAN": "flags:S; threshold:type both,track by_src,count 50,seconds 5;",
+        }
+
+        pattern = threat_type_to_pattern.get(threat.threat_type, "content:\"suspicious\";")
+        action = "drop" if threat.severity in [ThreatSeverity.CRITICAL, ThreatSeverity.HIGH] else "alert"
+
+        rule_text = f'{action} tcp any any -> any any (msg:"{threat.threat_type} Detected (Fallback)"; {pattern} classtype:attempted-admin; sid:{sid}; rev:1;)'
+
+        return GeneratedRule(
+            rule_text=rule_text,
+            sid=sid,
+            msg=f"{threat.threat_type} Detected (Fallback)",
+            classtype="attempted-admin",
+            action=action,
+            threat_severity=threat.severity,
+            timestamp=datetime.now().isoformat(),
+            generated_by_ai=False,
+            validated=False
+        )
+
+    def _parse_rule(self, rule_text: str, severity: ThreatSeverity) -> Optional[GeneratedRule]:
+        """Parse rule text and extract metadata"""
+        try:
+            # Extract action
+            action = None
+            for act in [act.value for act in RuleAction]:
+                if rule_text.startswith(act):
+                    action = act
+                    break
+
+            if not action:
+                logger.error("Rule does not start with a valid action")
+                return None
+
+            # Extract SID
+            sid = None
+            for token in rule_text.split():
+                if token.startswith("sid:"):
+                    try:
+                        sid = int(token.split(":")[1].rstrip(";"))
+                        break
+                    except (ValueError, IndexError):
+                        pass
+
+            if not sid:
+                sid = self.next_sid
+                self.next_sid += 1
+
+            # Extract msg
+            msg = ""
+            if 'msg:"' in rule_text:
+                start = rule_text.find('msg:"') + 5
+                end = rule_text.find('"', start)
+                msg = rule_text[start:end] if end > start else "AI Generated Rule"
+
+            # Extract classtype
+            classtype = "unknown"
+            if "classtype:" in rule_text:
+                start = rule_text.find("classtype:") + 10
+                end = rule_text.find(";", start)
+                classtype = rule_text[start:end].strip() if end > start else "unknown"
+
+            return GeneratedRule(
+                rule_text=rule_text,
+                sid=sid,
+                msg=msg,
+                classtype=classtype,
+                action=action,
+                threat_severity=severity,
+                timestamp=datetime.now().isoformat(),
+                generated_by_ai=True,
+                validated=False
+            )
+
+        except Exception as e:
+            logger.error(f"Rule parsing failed: {e}")
+            return None
+
+    @staticmethod
+    def _get_next_sid() -> int:
+        """Get next available SID"""
+        try:
+            if RULES_STATE_FILE.exists():
+                state = json.loads(RULES_STATE_FILE.read_text())
+                return state.get("next_sid", RULE_SID_START)
+        except Exception:
+            pass
+        return RULE_SID_START
+
+    def _save_state(self):
+        """Save current state (next_sid) to file"""
+        try:
+            RULES_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            state = {"next_sid": self.next_sid, "last_update": datetime.now().isoformat()}
+            RULES_STATE_FILE.write_text(json.dumps(state, indent=2))
+        except Exception as e:
+            logger.error(f"Failed to save state: {e}")
+
+
+# ============================================================================
+# Firewall Manager
+# ============================================================================
 
 class FirewallManager:
     """Manages firewall rules for blocking IPs"""
@@ -257,18 +591,36 @@ class SOAREngine:
     """Security Orchestration and Automated Response Engine
     
     Main engine for processing security alerts and executing automated responses.
+    
+    Features:
+    - Automated IP blocking based on severity
+    - AI-powered Suricata rule generation using Gemini
+    - Security report generation
+    - Comprehensive audit logging
     """
     
-    def __init__(self, auto_block: bool = True, severity_threshold: str = "MEDIUM"):
+    def __init__(self, auto_block: bool = True, severity_threshold: str = "MEDIUM", 
+                 enable_ai_rules: bool = False):
         self.firewall = FirewallManager()
         self.reporter = ReportGenerator()
         self.auto_block = auto_block
         self.severity_threshold = severity_threshold
+        self.enable_ai_rules = enable_ai_rules
         self.alert_count = 0
+        
+        # Initialize AI rule generator if enabled
+        self.ai_generator = None
+        if enable_ai_rules:
+            try:
+                self.ai_generator = AIRuleGenerator()
+                logger.info("✓ AI rule generation enabled")
+            except Exception as e:
+                logger.warning(f"AI rule generation disabled: {e}")
         
         logger.info("SOAR Engine initialized")
         logger.info(f"  Auto-block: {auto_block}")
         logger.info(f"  Severity threshold: {severity_threshold}")
+        logger.info(f"  AI rule generation: {enable_ai_rules}")
     
     def process_alert(self, alert: Dict[str, Any]) -> bool:
         """Process a security alert and take appropriate action"""
@@ -292,6 +644,10 @@ class SOAREngine:
             action = "LOGGED_ONLY"
             logger.info(f"   Action: Alert logged (severity below threshold)")
         
+        # Generate AI rule for HIGH/CRITICAL threats
+        if self.enable_ai_rules and severity in ["HIGH", "CRITICAL"]:
+            self._generate_dynamic_rule(alert)
+        
         # Log action
         result = "success" if blocked or not should_block else "failed"
         self.reporter.log_action(alert, action, result)
@@ -301,6 +657,164 @@ class SOAREngine:
             self.reporter.generate_report(alert, blocked)
         
         return blocked
+    
+    def _generate_dynamic_rule(self, alert: Dict[str, Any]):
+        """Generate dynamic Suricata rule using AI"""
+        if not self.ai_generator:
+            logger.debug("AI generator not available")
+            return
+        
+        try:
+            # Extract threat information
+            signature = alert.get('signature', 'Unknown threat')
+            severity_str = alert.get('severity', 'MEDIUM')
+            
+            # Map string severity to enum
+            severity_map = {
+                'CRITICAL': ThreatSeverity.CRITICAL,
+                'HIGH': ThreatSeverity.HIGH,
+                'MEDIUM': ThreatSeverity.MEDIUM,
+                'LOW': ThreatSeverity.LOW
+            }
+            severity = severity_map.get(severity_str, ThreatSeverity.MEDIUM)
+            
+            # Classify attack type from signature
+            threat_type = self._classify_threat_type(signature)
+            
+            # Create threat context
+            threat = ThreatContext(
+                severity=severity,
+                threat_type=threat_type,
+                payload=signature,
+                source_ip=alert.get('src_ip'),
+                dest_ip=alert.get('dest_ip'),
+                dest_port=alert.get('dest_port'),
+                protocol=alert.get('proto', 'tcp').lower(),
+                additional_context=f"Detected by Suricata at {datetime.now().isoformat()}"
+            )
+            
+            # Generate rule
+            logger.info(f"🤖 Generating AI rule for: {threat_type}")
+            rule = self.ai_generator.generate(threat)
+            
+            if rule:
+                # Deploy rule
+                success = self._deploy_rule(rule)
+                if success:
+                    logger.info(f"✓ AI rule deployed: SID {rule.sid}")
+                    self._log_rule_audit("deployed", rule, "success")
+                else:
+                    logger.warning(f"Failed to deploy AI rule: SID {rule.sid}")
+                    self._log_rule_audit("deployed", rule, "failed", "Deployment failed")
+            
+        except Exception as e:
+            logger.error(f"Error generating AI rule: {e}")
+    
+    def _classify_threat_type(self, signature: str) -> str:
+        """Classify threat type from signature"""
+        sig_lower = signature.lower()
+        
+        if "sql" in sig_lower or "injection" in sig_lower:
+            return "SQL_INJECTION"
+        elif "xss" in sig_lower or "script" in sig_lower:
+            return "XSS"
+        elif "traversal" in sig_lower or "path" in sig_lower:
+            return "PATH_TRAVERSAL"
+        elif "ddos" in sig_lower or "flood" in sig_lower:
+            return "DDOS"
+        elif "scan" in sig_lower or "recon" in sig_lower:
+            return "PORT_SCAN"
+        elif "brute" in sig_lower:
+            return "BRUTE_FORCE"
+        else:
+            return "GENERAL_THREAT"
+    
+    def _deploy_rule(self, rule: GeneratedRule) -> bool:
+        """Deploy generated rule to Suricata rules file"""
+        try:
+            # Check if rules file exists
+            if not SURICATA_RULES_PATH.exists():
+                logger.warning(f"Rules file not found: {SURICATA_RULES_PATH}")
+                logger.info("Creating rules file...")
+                SURICATA_RULES_PATH.parent.mkdir(parents=True, exist_ok=True)
+                SURICATA_RULES_PATH.touch()
+            
+            # Append rule to local.rules
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            rule_entry = f"\n# AI-generated rule on {timestamp}\n# Threat Severity: {rule.threat_severity.value}\n{rule.rule_text}\n"
+            
+            with open(SURICATA_RULES_PATH, "a") as f:
+                f.write(rule_entry)
+            
+            logger.info(f"Rule appended to {SURICATA_RULES_PATH}")
+            
+            # Try to reload Suricata rules (non-blocking)
+            self._reload_suricata_rules()
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Rule deployment failed: {e}")
+            return False
+    
+    @staticmethod
+    def _reload_suricata_rules() -> bool:
+        """Reload Suricata rules (best effort, non-blocking)"""
+        if not SURICATA_BINARY.exists():
+            logger.debug("Suricata binary not found - skipping reload (development mode)")
+            return True
+        
+        try:
+            # Try suricatasc first (zero-downtime reload)
+            result = subprocess.run(
+                ["suricatasc", "-c", "reload-rules"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode == 0:
+                logger.info("✓ Suricata rules reloaded")
+                return True
+            else:
+                logger.debug("suricatasc reload failed (may not be running)")
+                
+        except Exception as e:
+            logger.debug(f"Could not reload Suricata rules: {e}")
+        
+        return False
+    
+    def _log_rule_audit(self, action: str, rule: GeneratedRule, status: str, 
+                       error_message: Optional[str] = None):
+        """Log rule action to audit trail"""
+        try:
+            RULES_AUDIT_LOG.parent.mkdir(parents=True, exist_ok=True)
+            
+            entry = AuditEntry(
+                timestamp=datetime.now().isoformat(),
+                action=action,
+                rule_sid=rule.sid,
+                rule_msg=rule.msg,
+                status=status,
+                error_message=error_message
+            )
+            
+            # Read existing audit log
+            audit_entries = []
+            if RULES_AUDIT_LOG.exists():
+                try:
+                    audit_entries = json.loads(RULES_AUDIT_LOG.read_text())
+                except Exception:
+                    pass
+            
+            # Append new entry
+            audit_entries.append(asdict(entry))
+            
+            # Write back
+            RULES_AUDIT_LOG.write_text(json.dumps(audit_entries, indent=2))
+            
+        except Exception as e:
+            logger.error(f"Failed to log audit entry: {e}")
     
     def _should_block(self, severity: str) -> bool:
         """Determine if an IP should be blocked based on severity"""
@@ -330,18 +844,29 @@ class SOAREngine:
     
     def get_stats(self) -> Dict[str, Any]:
         """Get SOAR engine statistics"""
-        return {
+        stats = {
             'alerts_processed': self.alert_count,
             'blocked_ips_count': len(self.firewall.blocked_ips),
             'auto_block_enabled': self.auto_block,
-            'severity_threshold': self.severity_threshold
+            'severity_threshold': self.severity_threshold,
+            'ai_rules_enabled': self.enable_ai_rules
         }
+        
+        # Add AI rule stats if enabled
+        if self.ai_generator:
+            stats['ai_generator_available'] = True
+        
+        return stats
 
 
 def main():
     """Main entry point for testing"""
-    # Create SOAR engine
-    soar = SOAREngine(auto_block=True, severity_threshold="MEDIUM")
+    # Create SOAR engine with AI rule generation
+    soar = SOAREngine(
+        auto_block=True, 
+        severity_threshold="MEDIUM",
+        enable_ai_rules=True  # Enable AI rule generation
+    )
     
     # Test with sample alerts
     test_alerts = [
@@ -350,7 +875,8 @@ def main():
             'dest_ip': '10.0.0.1',
             'signature': 'Potential SQL Injection attempt',
             'severity': 'HIGH',
-            'proto': 'TCP'
+            'proto': 'TCP',
+            'dest_port': 80
         },
         {
             'src_ip': '192.168.1.101',
@@ -362,24 +888,32 @@ def main():
         {
             'src_ip': '192.168.1.102',
             'dest_ip': '10.0.0.1',
-            'signature': 'Suspicious DNS query',
-            'severity': 'LOW',
-            'proto': 'UDP'
+            'signature': 'XSS attack attempt detected',
+            'severity': 'CRITICAL',
+            'proto': 'TCP',
+            'dest_port': 443
         }
     ]
     
+    logger.info("="*60)
+    logger.info("VAJRA SOAR Engine - Testing with AI Rule Generation")
+    logger.info("="*60)
     logger.info("Processing test alerts...")
+    
     for alert in test_alerts:
         soar.process_alert(alert)
         print()
+        time.sleep(1)  # Small delay between alerts
     
     # Print stats
     stats = soar.get_stats()
     logger.info(f"\n📊 SOAR Statistics:")
     logger.info(f"   Alerts processed: {stats['alerts_processed']}")
     logger.info(f"   IPs blocked: {stats['blocked_ips_count']}")
-    logger.info(f"   Blocked IPs: {', '.join(soar.get_blocked_ips())}")
+    logger.info(f"   AI rules enabled: {stats['ai_rules_enabled']}")
+    logger.info(f"   Blocked IPs: {', '.join(soar.get_blocked_ips()) if soar.get_blocked_ips() else 'None'}")
 
 
 if __name__ == "__main__":
     main()
+

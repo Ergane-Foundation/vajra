@@ -1,14 +1,15 @@
-# First Prototype - ML-Enhanced Firewall
+# VAJRA - AI-Enhanced Next-Generation Firewall
 
-An intelligent network firewall system combining deep packet inspection, federated learning, and automated security orchestration for advanced threat detection and response.
+**VAJRA** is an intelligent network firewall system combining deep packet inspection, federated learning, AI-powered dynamic rule generation, and automated security orchestration for advanced threat detection and response.
 
 ## Overview
 
-This prototype implements a distributed security architecture where:
+VAJRA implements a distributed security architecture where:
 
 - Network packets are inspected in real-time for threat patterns (Scapy + Suricata)
-- Security alerts trigger automated response actions
-- Federated learning enables collaborative threat intelligence
+- Security alerts trigger automated response actions (IP blocking, rule generation)
+- **Federated Learning** enables collaborative, privacy-preserving threat intelligence across multiple firewall nodes
+- **AI-Powered Dynamic Rules**: Google Gemini automatically generates Suricata rules for emerging threats
 - Event streaming ensures scalable alert processing
 
 ## Architecture
@@ -17,7 +18,91 @@ This prototype implements a distributed security architecture where:
 Network Traffic → Packet Inspector → Kafka Queue → SOAR Engine → Firewall Rules
                    (Scapy+Suricata)                      ↓
                        ↓                          Security Reports
-                  FL Client (Training)
+                  FL Client (Training)            AI Rule Generator
+                       ↓                                  ↓
+                  FL Server (Aggregation)      Suricata Rules (Dynamic)
+```
+
+## Key Features
+
+### 🤖 AI-Powered Dynamic Rule Generation (New ✨)
+
+VAJRA uses **Google Gemini AI** to automatically generate Suricata IDS/IPS rules for emerging threats in real-time:
+
+- **Intelligent Rule Creation**: Analyzes threat signatures and generates precise detection rules
+- **Context-Aware**: Uses threat severity, attack type, and network context
+- **Automatic Deployment**: Rules are validated and deployed to Suricata instantly
+- **Fallback Mechanism**: If AI is unavailable, uses template-based rule generation
+- **Audit Trail**: Complete logging of all AI-generated rules
+
+**Threat Types Supported**:
+
+- SQL Injection
+- Cross-Site Scripting (XSS)
+- Path Traversal
+- DDoS Attacks
+- Port Scanning
+- Brute Force Attacks
+- General Threats
+
+**Configuration**:
+
+```bash
+# Set your Google Gemini API key
+export GOOGLE_API_KEY='your-api-key-here'
+
+# Enable AI rule generation in SOAR engine
+python3 soar_engine.py
+```
+
+The SOAR engine automatically generates rules for HIGH and CRITICAL severity threats.
+
+### 🔐 Federated Learning for Threat Intelligence (Enhanced ✨)
+
+VAJRA implements **privacy-preserving federated learning** across multiple firewall deployments:
+
+**Architecture**:
+
+- **FL Client**: Runs on each firewall node, trains models locally on eve.json alerts
+- **FL Server**: Central aggregation server using Flower framework
+- **Model Types**: Specialized models for different attack types (SQL injection, DDoS, XSS, general threats)
+- **Privacy**: Only model weights are shared, never raw network data
+
+**Features**:
+
+- **Multiple Model Types**:
+  - `sqli` - SQL Injection detector (port 8081)
+  - `ddos` - DDoS attack detector (port 8082)
+  - `xss` - XSS attack detector (port 8083)
+  - `general` - General threat detector (port 8084)
+- **Attack Classification**: Automatically routes alerts to appropriate model
+- **Feature Extraction**: 12+ network features including entropy, flow metrics, payload analysis
+- **Collaborative Learning**: Aggregates knowledge from all firewall nodes without sharing sensitive data
+
+**FL Client Usage**:
+
+```bash
+# Train all models and send updates to FL server
+python3 fl_client.py --all --server-host 192.168.1.100
+
+# Train specific model
+python3 fl_client.py --model sqli --server-host 192.168.1.100
+
+# Dry run (train locally, don't send updates)
+python3 fl_client.py --all --dry-run
+
+# Specify data window
+python3 fl_client.py --all --hours 48
+```
+
+**FL Server Setup** (see `linux/fl_server_manager.py` for reference):
+
+```bash
+# Start all FL servers
+python3 fl_server_manager.py --all --rounds 10
+
+# Start specific model server
+python3 fl_server_manager.py --model sqli --port 8081
 ```
 
 ## Components
@@ -47,14 +132,25 @@ sudo python3 packet_inspector.py -i eth0
 sudo python3 packet_inspector.py -i eth0 --suricata --eve-json logs/eve.json
 ```
 
-### SOAR Engine
+### SOAR Engine (Enhanced ✨)
 
-Security Orchestration and Automated Response system:
+Security Orchestration and Automated Response system with AI-powered capabilities:
 
 - Automated IP blocking via iptables/nftables
 - Threat severity evaluation
 - Security report generation
 - Action logging and audit trails
+- **AI-Powered Dynamic Rule Generation**: Automatically creates Suricata rules using Google Gemini for HIGH/CRITICAL threats
+- **Rule Deployment**: Validates and deploys AI-generated rules to Suricata in real-time
+- **Comprehensive Audit**: Tracks all rule generation and deployment activities
+
+**Features**:
+
+- Automatic threat classification (SQL Injection, XSS, DDoS, etc.)
+- Context-aware rule generation based on attack signatures
+- Zero-downtime rule deployment (via suricatasc)
+- Fallback rule templates when AI is unavailable
+- JSON audit logs for compliance
 
 ### FL Client (Enhanced ✨)
 
