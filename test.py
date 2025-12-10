@@ -20,7 +20,7 @@ try:
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
-    print("⚠️  Scapy not available - only showing Suricata flows")
+    print("⚠️  VAJRA not available - only showing Suricata flows")
 
 # ANSI colors for terminal
 class Color:
@@ -184,7 +184,7 @@ def packet_callback(packet):
             dst_ip = ip_layer.dst
             ttl = ip_layer.ttl
             
-            print(f"\n{Color.BOLD}{Color.GREEN}╔══ SCAPY PACKET INSPECTION ════════════════════════════════════════╗{Color.RESET}")
+            print(f"\n{Color.BOLD}{Color.GREEN}╔══ VAJRA PACKET INSPECTION ════════════════════════════════════════╗{Color.RESET}")
             print(f"{Color.GREEN}║{Color.RESET} {Color.CYAN}Time:{Color.RESET} {timestamp}")
             print(f"{Color.GREEN}║{Color.RESET} {Color.CYAN}IP:{Color.RESET} {src_ip} {Color.YELLOW}→{Color.RESET} {dst_ip} (TTL: {ttl})")
             print(f"{Color.GREEN}║{Color.RESET} {Color.CYAN}Size:{Color.RESET} {len(packet)} bytes")
@@ -302,7 +302,7 @@ def packet_callback(packet):
             op = arp_layer.op
             op_name = 'Request' if op == 1 else 'Reply' if op == 2 else f'Op {op}'
             
-            print(f"\n{Color.BOLD}{Color.PURPLE}╔══ SCAPY ARP PACKET ═══════════════════════════════════════════════╗{Color.RESET}")
+            print(f"\n{Color.BOLD}{Color.PURPLE}╔══ VAJRA ARP PACKET ═══════════════════════════════════════════════╗{Color.RESET}")
             print(f"{Color.PURPLE}║{Color.RESET} {Color.CYAN}Time:{Color.RESET} {timestamp}")
             print(f"{Color.PURPLE}║{Color.RESET} {Color.CYAN}Type:{Color.RESET} {op_name}")
             print(f"{Color.PURPLE}║{Color.RESET} {Color.CYAN}Sender:{Color.RESET} {arp_layer.psrc} ({arp_layer.hwsrc})")
@@ -317,7 +317,7 @@ def start_scapy_capture(interface=None):
     if not SCAPY_AVAILABLE:
         return
     
-    print(f"{Color.GREEN}🔍 Starting Scapy packet capture...{Color.RESET}")
+    print(f"{Color.GREEN}🔍 Starting VAJRA packet capture...{Color.RESET}")
     if interface:
         print(f"   Interface: {interface}")
     else:
@@ -331,10 +331,10 @@ def start_scapy_capture(interface=None):
         print(f"{Color.RED}❌ Permission denied. Run with sudo:{Color.RESET}")
         print(f"   sudo python3 test.py")
     except Exception as e:
-        print(f"{Color.RED}Scapy error: {e}{Color.RESET}")
+        print(f"{Color.RED}VAJRA error: {e}{Color.RESET}")
 
 def main():
-    print_header("🔥 Suricata Flow + Scapy Packet Monitor")
+    print_header("🔥 Suricata Flow + VAJRA Packet Monitor")
     
     # Find eve.json
     eve_paths = [
@@ -357,7 +357,7 @@ def main():
         eve_path.touch()
     
     print(f"{Color.CYAN}Suricata eve.json: {eve_path}{Color.RESET}")
-    print(f"{Color.CYAN}Scapy available: {SCAPY_AVAILABLE}{Color.RESET}")
+    print(f"{Color.CYAN}VAJRA available: {SCAPY_AVAILABLE}{Color.RESET}")
     print(f"\n{Color.YELLOW}Press Ctrl+C to stop{Color.RESET}\n")
     
     # Start Suricata watcher in thread

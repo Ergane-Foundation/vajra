@@ -1,0 +1,8 @@
+{
+  "timestamp": "2025-12-09T12:43:13.695021",
+  "test_type": "integration_stress",
+  "summary": {
+    "throughput": 3850,
+    "threshold_met": true
+  }
+}

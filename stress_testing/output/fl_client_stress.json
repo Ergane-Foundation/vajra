@@ -1,0 +1,15 @@
+{
+  "test_name": "fl_client_stress",
+  "status": "passed",
+  "start_time": "2025-12-09T12:43:00.074092",
+  "end_time": "2025-12-09T12:43:00.552444",
+  "duration_seconds": 0.48,
+  "output": "[12:43:00] [INFO] fl_client_stress: \u2713 PASSED\n",
+  "error": null,
+  "metrics": {
+    "throughput": 2780,
+    "threshold_met": true
+  },
+  "validation_failures": [],
+  "threshold_met": true
+}

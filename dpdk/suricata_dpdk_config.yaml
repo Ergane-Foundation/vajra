@@ -1,0 +1,94 @@
+# Suricata DPDK Configuration Snippet
+# Add this to your suricata.yaml to enable DPDK support
+
+dpdk:
+  # EAL (Environment Abstraction Layer) parameters
+  eal-params:
+    # Process type (primary = main DPDK process)
+    proc-type: primary
+    
+    # CPU cores for DPDK (lcore mask or core list)
+    # Example: -l 0-3 means cores 0,1,2,3
+    # cores: [0, 1, 2, 3]
+    
+    # Memory channels (depends on your CPU, usually 2 or 4)
+    memory-channels: 4
+    
+    # Service cores (for non-dataplane work)
+    # service-cores: [0]
+    
+    # PCI whitelist - specify NICs to use with DPDK
+    # Get PCI addresses with: lspci | grep Ethernet
+    # Or: dpdk-devbind.py --status
+    pci-whitelist:
+      - 0000:00:08.0  # Replace with your NIC's PCI address
+      # - 0000:00:09.0  # Add more NICs if needed
+  
+  # DPDK ports configuration
+  ports:
+    # Port 0 (first DPDK-bound NIC)
+    - port: 0
+      # Number of RX queues
+      rx-queues: 4
+      
+      # Number of TX queues (usually not needed for IDS)
+      # tx-queues: 4
+      
+      # RX descriptors per queue
+      # rx-ring-size: 2048
+      
+      # Mempool configuration
+      mempool-size: 16384
+      mempool-cache-size: 256
+      
+      # Threading mode
+      threads: 4
+  
+  # Interrupt mode (disabled for performance)
+  interrupt-mode: no
+
+# Update af-packet configuration to disable when using DPDK
+af-packet:
+  - interface: default  # Disabled when using DPDK
+    # Comment out or remove af-packet config when using DPDK
+
+# Performance tuning for DPDK mode
+runmode: workers
+
+# Thread configuration
+threading:
+  set-cpu-affinity: yes
+  cpu-affinity:
+    - management-cpu-set:
+        cpu: [ 0 ]
+    - receive-cpu-set:
+        cpu: [ 1, 2, 3, 4 ]
+    - worker-cpu-set:
+        cpu: [ 1, 2, 3, 4 ]
+  detect-thread-ratio: 1.0
+
+# Logging
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: /var/log/suricata/eve.json
+      types:
+        - alert:
+            metadata: yes
+            tagged-packets: yes
+        - http:
+            extended: yes
+        - dns:
+            version: 2
+        - tls:
+            extended: yes
+        - files:
+            force-magic: yes
+        - drop:
+            alerts: yes
+        - smtp:
+        - flow
+
+# Example: Full Suricata DPDK startup command
+# sudo suricata -c /etc/suricata/suricata.yaml --dpdk

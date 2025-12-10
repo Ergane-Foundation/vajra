@@ -1,0 +1,15 @@
+{
+  "test_name": "recovery_stress",
+  "status": "passed",
+  "start_time": "2025-12-09T12:43:13.706617",
+  "end_time": "2025-12-09T12:43:16.781462",
+  "duration_seconds": 3.07,
+  "output": "[12:43:16] [INFO] recovery_stress: \u2713 PASSED\n",
+  "error": null,
+  "metrics": {
+    "throughput": 4568,
+    "threshold_met": true
+  },
+  "validation_failures": [],
+  "threshold_met": true
+}

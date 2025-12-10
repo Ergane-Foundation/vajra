@@ -48,3 +48,75 @@ drop http any any -> any any (msg:"NGFW DROP Path Traversal - etc passwd"; flow:
 drop http any any -> any any (msg:"NGFW DROP Path Traversal - etc shadow"; flow:established,to_server; http.uri; content:"etc/shadow"; nocase; classtype:web-application-attack; sid:2000023; rev:1;)
 
 drop http any any -> any any (msg:"NGFW DROP Path Traversal - Windows style"; flow:established,to_server; http.uri; content:"..\\"; classtype:web-application-attack; sid:2000024; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Path Traversal - boot.ini"; flow:established,to_server; http.uri; content:"boot.ini"; nocase; classtype:web-application-attack; sid:2000025; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Path Traversal - win.ini"; flow:established,to_server; http.uri; content:"win.ini"; nocase; classtype:web-application-attack; sid:2000026; rev:1;)
+
+# ==========================================
+# COMMAND INJECTION - DROP
+# ==========================================
+
+drop http any any -> any any (msg:"NGFW DROP Command Injection - wget"; flow:established,to_server; http.uri; content:"wget"; nocase; classtype:web-application-attack; sid:2000030; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Command Injection - curl"; flow:established,to_server; http.uri; content:"curl"; nocase; classtype:web-application-attack; sid:2000031; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Command Injection - whoami"; flow:established,to_server; http.uri; content:"whoami"; nocase; classtype:web-application-attack; sid:2000032; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Command Injection - bin sh"; flow:established,to_server; http.uri; content:"/bin/sh"; classtype:web-application-attack; sid:2000033; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Command Injection - bin bash"; flow:established,to_server; http.uri; content:"/bin/bash"; classtype:web-application-attack; sid:2000034; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Command Injection - netcat"; flow:established,to_server; http.uri; content:"nc "; nocase; classtype:web-application-attack; sid:2000035; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Command Injection - dev tcp"; flow:established,to_server; http.uri; content:"/dev/tcp"; classtype:web-application-attack; sid:2000036; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Command Injection - cat etc"; flow:established,to_server; http.uri; content:"cat "; nocase; content:"/etc"; distance:0; within:20; classtype:web-application-attack; sid:2000037; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Command Injection - pipe ls"; flow:established,to_server; http.uri; content:"|7c|"; content:"ls"; distance:0; within:10; classtype:web-application-attack; sid:2000038; rev:1;)
+
+drop http any any -> any any (msg:"NGFW DROP Command Injection - semicolon ls"; flow:established,to_server; http.uri; content:"|3b|"; content:"ls"; distance:0; within:10; classtype:web-application-attack; sid:2000039; rev:1;)
+
+# ==========================================
+# PORT SCAN - DROP
+# ==========================================
+
+drop tcp any any -> $HOME_NET any (msg:"NGFW DROP Port Scan - SYN Flood"; flags:S,12; threshold:type both, track by_src, count 15, seconds 3; classtype:attempted-recon; sid:2000040; rev:1;)
+
+drop tcp any any -> $HOME_NET any (msg:"NGFW DROP Port Scan - FIN Scan"; flags:F,12; threshold:type both, track by_src, count 10, seconds 5; classtype:attempted-recon; sid:2000041; rev:1;)
+
+drop tcp any any -> $HOME_NET any (msg:"NGFW DROP Port Scan - XMAS Scan"; flags:FPU,12; threshold:type both, track by_src, count 5, seconds 5; classtype:attempted-recon; sid:2000042; rev:1;)
+
+drop tcp any any -> $HOME_NET any (msg:"NGFW DROP Port Scan - NULL Scan"; flags:0,12; threshold:type both, track by_src, count 5, seconds 5; classtype:attempted-recon; sid:2000043; rev:1;)
+
+# ==========================================
+# DDoS - DROP
+# ==========================================
+
+drop tcp any any -> $HOME_NET any (msg:"NGFW DROP DDoS - SYN Flood"; flags:S,12; threshold:type both, track by_src, count 100, seconds 2; classtype:denial-of-service; sid:2000050; rev:1;)
+
+drop udp any any -> $HOME_NET any (msg:"NGFW DROP DDoS - UDP Flood"; threshold:type both, track by_src, count 200, seconds 2; classtype:denial-of-service; sid:2000051; rev:1;)
+
+drop icmp any any -> $HOME_NET any (msg:"NGFW DROP DDoS - ICMP Flood"; itype:8; threshold:type both, track by_src, count 50, seconds 2; classtype:denial-of-service; sid:2000052; rev:1;)
+
+drop http any any -> $HOME_NET any (msg:"NGFW DROP DDoS - HTTP Flood"; flow:to_server; threshold:type both, track by_src, count 30, seconds 2; classtype:denial-of-service; sid:2000053; rev:1;)
+
+# ==========================================
+# CREDENTIAL ABUSE - DROP
+# ==========================================
+
+drop tcp any any -> $HOME_NET 22 (msg:"NGFW DROP SSH Brute Force"; flow:to_server; threshold:type both, track by_src, count 3, seconds 30; classtype:attempted-admin; sid:2000060; rev:1;)
+
+drop tcp any any -> $HOME_NET 21 (msg:"NGFW DROP FTP Brute Force"; flow:to_server; threshold:type both, track by_src, count 3, seconds 30; classtype:attempted-admin; sid:2000061; rev:1;)
+
+drop tcp any any -> $HOME_NET 3389 (msg:"NGFW DROP RDP Brute Force"; flow:to_server; threshold:type both, track by_src, count 3, seconds 30; classtype:attempted-admin; sid:2000062; rev:1;)
+
+# ==========================================
+# DNS ATTACKS - DROP
+# ==========================================
+
+drop udp any 53 -> $HOME_NET any (msg:"NGFW DROP DNS Spoofing Response"; content:"|81 80|"; offset:2; depth:2; classtype:policy-violation; sid:2000070; rev:1;)
+
+# Auto-generated by AI Firewall on 2025-12-08 10:33:10
+# Threat Severity: critical
+drop tcp any any -> any any (msg:"C2_BEACONING Detected"; content:"beacon"; flow:established,to_server; classtype:trojan-activity; sid:1000001; rev:1;)

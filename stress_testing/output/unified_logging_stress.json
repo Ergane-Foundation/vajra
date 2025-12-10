@@ -1,0 +1,15 @@
+{
+  "test_name": "unified_logging_stress",
+  "status": "passed",
+  "start_time": "2025-12-09T12:43:00.552811",
+  "end_time": "2025-12-09T12:43:04.085944",
+  "duration_seconds": 3.53,
+  "output": "[12:43:04] [INFO] unified_logging_stress: \u2713 PASSED\n",
+  "error": null,
+  "metrics": {
+    "throughput": 2095,
+    "threshold_met": true
+  },
+  "validation_failures": [],
+  "threshold_met": true
+}

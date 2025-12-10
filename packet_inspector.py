@@ -1,58 +1,280 @@
 #!/usr/bin/env python3
 """
-Packet Inspector - Network Packet Analysis with Suricata Integration
+Packet Inspector - Deep packet inspection with DPDK or Scapy
 
-Captures and inspects network packets for threat detection.
-Uses Scapy for deep packet inspection and Suricata for network flows.
+Captures network packets and extracts features for ML analysis.
+Works alongside Suricata to provide enhanced ML-based threat detection.
+
+Features:
+- High-performance packet capture using DPDK (recommended)
+- Legacy packet capture using Scapy (deprecated, fallback only)
+- Feature extraction for ML models
+- Integration with ML Model Manager
+- Combined logging with Suricata events
+
+Performance Modes:
+- DPDK mode (--dpdk): Uses DPDK C++ packet processor for line-rate capture
+- Scapy mode (default): Legacy Python-based capture (DEPRECATED)
 """
 
 import json
 import time
 import logging
-import signal
+import os
+import sys
 import threading
+import signal
+from datetime import datetime, timezone
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Callable
+from dataclasses import dataclass, asdict
 from collections import defaultdict
+import queue
 
-# Scapy imports (optional for first prototype)
+# DPDK consumer (recommended)
 try:
-    from scapy.all import sniff, IP, TCP, UDP, ICMP, Raw
+    from dpdk_consumer import DPDKJSONConsumer, DPDKPacketFeatures
+    DPDK_AVAILABLE = True
+except ImportError:
+    DPDK_AVAILABLE = False
+    print("Warning: dpdk_consumer not available. Install DPDK support.")
+
+# Scapy imports (DEPRECATED - legacy fallback only)
+try:
+    from scapy.all import (
+        sniff, IP, TCP, UDP, ICMP, DNS, Raw,
+        Ether, ARP, IPv6, conf
+    )
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
-    print("Warning: scapy not installed. Install with: pip install scapy")
+    print("Warning: scapy not installed. DPDK mode recommended.")
+
+# Local imports
+try:
+    from ml_model_manager import get_model_manager, MLPrediction
+    ML_AVAILABLE = True
+except ImportError:
+    ML_AVAILABLE = False
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s'
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('logs/packet_inspector.log')
+    ]
 )
 logger = logging.getLogger("packet_inspector")
 
 
+@dataclass
+class PacketFeatures:
+    """Extracted features from a network packet"""
+    timestamp: str
+    src_ip: str
+    dst_ip: str
+    src_port: int
+    dst_port: int
+    protocol: str
+    protocol_num: int
+    size: int
+    payload_size: int
+    flags: str
+    ttl: int
+    
+    # TCP specific
+    tcp_flags: str
+    seq_num: int
+    ack_num: int
+    window_size: int
+    
+    # Application layer
+    app_proto: str
+    http_method: str
+    http_uri: str
+    http_host: str
+    dns_query: str
+    
+    # Payload analysis
+    payload_entropy: float
+    payload_printable_ratio: float
+    has_payload: bool
+    
+    # Raw data for ML
+    raw_payload: str
+
+
+class FlowTracker:
+    """Tracks network flows for feature aggregation"""
+    
+    def __init__(self, flow_timeout: int = 60):
+        self.flows: Dict[str, Dict] = {}
+        self.flow_timeout = flow_timeout
+        self._lock = threading.Lock()
+    
+    def get_flow_key(self, src_ip: str, dst_ip: str, src_port: int, dst_port: int, proto: str) -> str:
+        """Generate a unique flow key"""
+        # Normalize flow key (bidirectional)
+        if (src_ip, src_port) > (dst_ip, dst_port):
+            return f"{dst_ip}:{dst_port}-{src_ip}:{src_port}-{proto}"
+        return f"{src_ip}:{src_port}-{dst_ip}:{dst_port}-{proto}"
+    
+    def update_flow(self, packet_features: PacketFeatures) -> Dict[str, Any]:
+        """Update flow statistics with new packet"""
+        flow_key = self.get_flow_key(
+            packet_features.src_ip,
+            packet_features.dst_ip,
+            packet_features.src_port,
+            packet_features.dst_port,
+            packet_features.protocol
+        )
+        
+        now = time.time()
+        
+        with self._lock:
+            if flow_key not in self.flows:
+                self.flows[flow_key] = {
+                    'start_time': now,
+                    'last_seen': now,
+                    'src_ip': packet_features.src_ip,
+                    'dst_ip': packet_features.dst_ip,
+                    'src_port': packet_features.src_port,
+                    'dst_port': packet_features.dst_port,
+                    'protocol': packet_features.protocol,
+                    'packets_forward': 0,
+                    'packets_backward': 0,
+                    'bytes_forward': 0,
+                    'bytes_backward': 0,
+                    'flags_seen': set(),
+                }
+            
+            flow = self.flows[flow_key]
+            flow['last_seen'] = now
+            
+            # Determine direction
+            is_forward = (packet_features.src_ip, packet_features.src_port) <= \
+                        (packet_features.dst_ip, packet_features.dst_port)
+            
+            if is_forward:
+                flow['packets_forward'] += 1
+                flow['bytes_forward'] += packet_features.size
+            else:
+                flow['packets_backward'] += 1
+                flow['bytes_backward'] += packet_features.size
+            
+            if packet_features.tcp_flags:
+                flow['flags_seen'].add(packet_features.tcp_flags)
+            
+            # Calculate duration
+            flow['duration'] = flow['last_seen'] - flow['start_time']
+            
+            # Convert set to list for JSON serialization
+            flow_copy = flow.copy()
+            flow_copy['flags_seen'] = list(flow['flags_seen'])
+            
+            return flow_copy
+    
+    def cleanup_expired(self):
+        """Remove expired flows"""
+        now = time.time()
+        with self._lock:
+            expired = [k for k, v in self.flows.items() 
+                      if now - v['last_seen'] > self.flow_timeout]
+            for k in expired:
+                del self.flows[k]
+        return len(expired)
+
+
 class PacketInspector:
-    """Network packet inspection engine with Suricata integration"""
-
-    def __init__(self, interface: str = "eth0", eve_json_path: str = "logs/eve.json"):
+    """
+    Deep packet inspection engine with DPDK or Scapy
+    
+    Captures packets, extracts features, and runs ML predictions.
+    
+    Modes:
+    - DPDK mode (recommended): High-performance capture with DPDK processor
+    - Scapy mode (legacy): Python-based capture (DEPRECATED)
+    """
+    
+    def __init__(
+        self,
+        interface: str = None,
+        bpf_filter: str = "ip",
+        ml_enabled: bool = True,
+        log_file: str = "logs/packet_inspector.json",
+        dpdk_mode: bool = False,
+        dpdk_json_path: str = "/tmp/dpdk_features.json"
+    ):
+        self.dpdk_mode = dpdk_mode
+        self.dpdk_json_path = dpdk_json_path
         self.interface = interface
-        self.eve_json_path = Path(eve_json_path)
-        self.running = False
+        self.bpf_filter = bpf_filter
+        self.ml_enabled = ml_enabled and ML_AVAILABLE
+        self.log_file = Path(log_file)
+        self.log_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Check availability
+        if self.dpdk_mode:
+            if not DPDK_AVAILABLE:
+                logger.error("DPDK mode requested but dpdk_consumer not available!")
+                logger.error("Install DPDK support or use --no-dpdk for Scapy mode")
+                self._running = False
+                self.stats = {'status': 'disabled', 'reason': 'dpdk not available'}
+                return
+            logger.info("🚀 DPDK MODE ENABLED - High-performance packet processing")
+            logger.info(f"  Reading features from: {dpdk_json_path}")
+            self.dpdk_consumer = DPDKJSONConsumer(dpdk_json_path)
+        else:
+            # Legacy Scapy mode (DEPRECATED)
+            logger.warning("⚠️  SCAPY MODE (DEPRECATED) - Consider switching to DPDK for better performance")
+            if not SCAPY_AVAILABLE:
+                logger.error("Scapy is not available. Packet inspection will be disabled.")
+                logger.error("Install with: pip install scapy (or use DPDK mode)")
+                self._running = False
+                self.stats = {'status': 'disabled', 'reason': 'scapy not available'}
+                return
+        
+        # Flow tracking
+        self.flow_tracker = FlowTracker()
+        
+        # ML Model Manager
+        self.model_manager = get_model_manager() if self.ml_enabled else None
+        
+        # Packet queue for async processing
+        self.packet_queue: queue.Queue = queue.Queue(maxsize=10000)
+        
+        # Statistics
         self.stats = {
-            'total_packets': 0,
-            'tcp_packets': 0,
-            'udp_packets': 0,
-            'icmp_packets': 0,
-            'suspicious_packets': 0,
-            'suricata_flows': 0,
-            'suricata_alerts': 0
+            'mode': 'dpdk' if self.dpdk_mode else 'scapy',
+            'packets_captured': 0,
+            'packets_processed': 0,
+            'ml_predictions': 0,
+            'threats_detected': 0,
+            'errors': 0
         }
-        self.suricata_thread = None
-        logger.info(f"Packet Inspector initialized on interface: {interface}")
-        logger.info(f"Suricata eve.json: {eve_json_path}")
-
+        
+        # Control flags
+        self._running = False
+        self._stop_event = threading.Event()
+        
+        # Callbacks for threat detection
+        self.threat_callbacks: List[Callable[[PacketFeatures, Optional[MLPrediction]], None]] = []
+        
+        logger.info(f"Packet Inspector initialized")
+        logger.info(f"  Mode: {'DPDK' if self.dpdk_mode else 'Scapy (legacy)'}")
+        logger.info(f"  Interface: {interface or 'all (DPDK handles)'}" if not self.dpdk_mode else f"  DPDK JSON: {dpdk_json_path}")
+        logger.info(f"  BPF Filter: {bpf_filter}" if not self.dpdk_mode else "  (filtering done by DPDK)")
+        logger.info(f"  ML Enabled: {self.ml_enabled}")
+    
+    def register_threat_callback(self, callback: Callable):
+        """Register a callback for threat detection"""
+        if not hasattr(self, 'threat_callbacks'):
+            self.threat_callbacks = []
+        self.threat_callbacks.append(callback)
+    
     def _calculate_entropy(self, data: bytes) -> float:
-        """Calculate Shannon entropy of payload data"""
+        """Calculate Shannon entropy of data"""
         if not data:
             return 0.0
         
@@ -69,278 +291,471 @@ class PacketInspector:
                 entropy -= p * math.log2(p)
         
         return entropy
-
-    def extract_features(self, packet) -> Optional[Dict[str, Any]]:
-        """Extract features from a network packet"""
-        if not SCAPY_AVAILABLE:
-            return None
+    
+    def _calculate_printable_ratio(self, data: bytes) -> float:
+        """Calculate ratio of printable ASCII characters"""
+        if not data:
+            return 0.0
         
+        printable = sum(1 for b in data if 32 <= b <= 126)
+        return printable / len(data)
+    
+    def _extract_tcp_flags(self, tcp_layer) -> str:
+        """Extract TCP flags as string"""
+        if not tcp_layer:
+            return ""
+        
+        flags = []
+        if tcp_layer.flags.S:
+            flags.append('S')
+        if tcp_layer.flags.A:
+            flags.append('A')
+        if tcp_layer.flags.F:
+            flags.append('F')
+        if tcp_layer.flags.R:
+            flags.append('R')
+        if tcp_layer.flags.P:
+            flags.append('P')
+        if tcp_layer.flags.U:
+            flags.append('U')
+        
+        return ''.join(flags)
+    
+    def extract_features(self, packet) -> Optional[PacketFeatures]:
+        """Extract features from a Scapy packet"""
         try:
-            features = {
-                'timestamp': datetime.now().isoformat(),
-                'size': len(packet),
-                'protocol': 'unknown',
-                'src_ip': '',
-                'dst_ip': '',
-                'src_port': 0,
-                'dst_port': 0,
-                'flags': '',
-                'payload_size': 0,
-                'suspicious': False
-            }
+            if not packet.haslayer(IP) and not packet.haslayer(IPv6):
+                return None
             
-            # IP layer
+            # Basic IP layer
             if packet.haslayer(IP):
                 ip = packet[IP]
-                features['src_ip'] = ip.src
-                features['dst_ip'] = ip.dst
-                features['ttl'] = ip.ttl
+                src_ip = ip.src
+                dst_ip = ip.dst
+                ttl = ip.ttl
+                proto_num = ip.proto
+            else:
+                ip6 = packet[IPv6]
+                src_ip = ip6.src
+                dst_ip = ip6.dst
+                ttl = ip6.hlim
+                proto_num = ip6.nh
             
-            # TCP layer
+            # Protocol and ports
+            src_port = 0
+            dst_port = 0
+            protocol = "OTHER"
+            tcp_flags = ""
+            seq_num = 0
+            ack_num = 0
+            window_size = 0
+            
             if packet.haslayer(TCP):
                 tcp = packet[TCP]
-                features['protocol'] = 'TCP'
-                features['src_port'] = tcp.sport
-                features['dst_port'] = tcp.dport
-                features['flags'] = str(tcp.flags)
-                self.stats['tcp_packets'] += 1
-                
-                # Check for suspicious patterns
-                if tcp.dport in [22, 23, 3389]:  # SSH, Telnet, RDP
-                    features['suspicious'] = True
-                    self.stats['suspicious_packets'] += 1
-            
-            # UDP layer
+                protocol = "TCP"
+                src_port = tcp.sport
+                dst_port = tcp.dport
+                tcp_flags = self._extract_tcp_flags(tcp)
+                seq_num = tcp.seq
+                ack_num = tcp.ack
+                window_size = tcp.window
             elif packet.haslayer(UDP):
                 udp = packet[UDP]
-                features['protocol'] = 'UDP'
-                features['src_port'] = udp.sport
-                features['dst_port'] = udp.dport
-                self.stats['udp_packets'] += 1
-            
-            # ICMP layer
+                protocol = "UDP"
+                src_port = udp.sport
+                dst_port = udp.dport
             elif packet.haslayer(ICMP):
-                features['protocol'] = 'ICMP'
-                self.stats['icmp_packets'] += 1
+                protocol = "ICMP"
             
-            # Payload analysis
+            # Payload
+            payload = b""
             if packet.haslayer(Raw):
-                payload = packet[Raw].load
-                features['payload_size'] = len(payload)
-                features['entropy'] = self._calculate_entropy(payload)
-                
-                # High entropy might indicate encrypted/obfuscated data
-                if features['entropy'] > 7.0:
-                    features['suspicious'] = True
-                    self.stats['suspicious_packets'] += 1
+                payload = bytes(packet[Raw].load)
             
-            self.stats['total_packets'] += 1
-            return features
+            # Application layer detection
+            app_proto = ""
+            http_method = ""
+            http_uri = ""
+            http_host = ""
+            dns_query = ""
+            
+            # HTTP detection
+            if payload and dst_port in (80, 8080, 8000) or src_port in (80, 8080, 8000):
+                app_proto = "HTTP"
+                try:
+                    payload_str = payload.decode('utf-8', errors='ignore')
+                    lines = payload_str.split('\r\n')
+                    if lines:
+                        first_line = lines[0]
+                        if first_line.startswith(('GET ', 'POST ', 'PUT ', 'DELETE ', 'HEAD ', 'OPTIONS ')):
+                            parts = first_line.split(' ')
+                            if len(parts) >= 2:
+                                http_method = parts[0]
+                                http_uri = parts[1]
+                        
+                        for line in lines:
+                            if line.lower().startswith('host:'):
+                                http_host = line[5:].strip()
+                                break
+                except:
+                    pass
+            
+            # HTTPS detection
+            elif dst_port == 443 or src_port == 443:
+                app_proto = "HTTPS"
+            
+            # DNS detection
+            if packet.haslayer(DNS):
+                app_proto = "DNS"
+                dns = packet[DNS]
+                if dns.qd:
+                    dns_query = dns.qd.qname.decode('utf-8', errors='ignore')
+            
+            # SSH detection
+            elif dst_port == 22 or src_port == 22:
+                app_proto = "SSH"
+            
+            return PacketFeatures(
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                src_ip=src_ip,
+                dst_ip=dst_ip,
+                src_port=src_port,
+                dst_port=dst_port,
+                protocol=protocol,
+                protocol_num=proto_num,
+                size=len(packet),
+                payload_size=len(payload),
+                flags=tcp_flags,
+                ttl=ttl,
+                tcp_flags=tcp_flags,
+                seq_num=seq_num,
+                ack_num=ack_num,
+                window_size=window_size,
+                app_proto=app_proto,
+                http_method=http_method,
+                http_uri=http_uri,
+                http_host=http_host,
+                dns_query=dns_query,
+                payload_entropy=self._calculate_entropy(payload),
+                payload_printable_ratio=self._calculate_printable_ratio(payload),
+                has_payload=len(payload) > 0,
+                raw_payload=payload[:500].hex() if payload else ""  # First 500 bytes
+            )
             
         except Exception as e:
-            logger.error(f"Error extracting features: {e}")
+            logger.debug(f"Feature extraction error: {e}")
+            self.stats['errors'] += 1
             return None
-
-    def packet_callback(self, packet):
+    
+    def _packet_callback(self, packet):
         """Callback for each captured packet"""
+        self.stats['packets_captured'] += 1
+        
+        # Extract features
         features = self.extract_features(packet)
-        
-        if features:
-            # Log suspicious packets
-            if features['suspicious']:
-                logger.warning(f"🚨 Suspicious packet: {features['src_ip']}:{features['src_port']} "
-                             f"-> {features['dst_ip']}:{features['dst_port']} "
-                             f"[{features['protocol']}]")
-            
-            # Print packet summary every 100 packets
-            if self.stats['total_packets'] % 100 == 0:
-                self.print_stats()
-
-    def print_stats(self):
-        """Print current statistics"""
-        logger.info(f"📊 Stats: Total={self.stats['total_packets']}, "
-                   f"TCP={self.stats['tcp_packets']}, "
-                   f"UDP={self.stats['udp_packets']}, "
-                   f"ICMP={self.stats['icmp_packets']}, "
-                   f"Suspicious={self.stats['suspicious_packets']}")
-
-    def start_capture(self, count: int = 0, timeout: int = None):
-        """Start packet capture on interface
-        
-        Args:
-            count: Number of packets to capture (0 = infinite)
-            timeout: Timeout in seconds (None = no timeout)
-        """
-        if not SCAPY_AVAILABLE:
-            logger.error("Cannot start capture: Scapy not available")
+        if not features:
             return
         
-        logger.info(f"Starting packet capture on {self.interface}...")
-        logger.info("Press Ctrl+C to stop")
+        self.stats['packets_processed'] += 1
         
-        self.running = True
+        # Update flow tracker
+        flow_data = self.flow_tracker.update_flow(features)
         
-        try:
-            sniff(
-                iface=self.interface,
-                prn=self.packet_callback,
-                store=False,
-                count=count,
-                timeout=timeout
-            )
-        except KeyboardInterrupt:
-            logger.info("Capture stopped by user")
-        except Exception as e:
-            logger.error(f"Capture error: {e}")
-        finally:
-            self.stop_capture()
-
-    def stop_capture(self):
-        """Stop packet capture"""
-        self.running = False
-        logger.info("Packet capture stopped")
-        self.print_stats()
-
-    def watch_suricata_eve(self):
-        """Monitor Suricata eve.json for flows and alerts"""
-        position = 0
-        logger.info(f"Starting Suricata eve.json monitor: {self.eve_json_path}")
-        
-        while self.running:
-            try:
-                if not self.eve_json_path.exists():
-                    time.sleep(2)
-                    continue
-                
-                current_size = self.eve_json_path.stat().st_size
-                
-                # Handle file rotation
-                if current_size < position:
-                    position = 0
-                
-                if current_size > position:
-                    with open(self.eve_json_path, 'r') as f:
-                        f.seek(position)
-                        
-                        for line in f:
-                            if not self.running:
-                                break
-                            
-                            try:
-                                event = json.loads(line.strip())
-                                self._process_suricata_event(event)
-                            except json.JSONDecodeError:
-                                pass
-                        
-                        position = f.tell()
-                
-                time.sleep(0.5)
+        # Run ML prediction if enabled
+        ml_prediction = None
+        if self.ml_enabled and self.model_manager:
+            # Convert features to dict for ML
+            feature_dict = asdict(features)
+            feature_dict.update(flow_data)  # Add flow features
             
-            except Exception as e:
-                logger.error(f"Error watching eve.json: {e}")
-                time.sleep(1)
+            # Run all models
+            predictions = self.model_manager.predict_all(feature_dict, data_type="network")
+            
+            if predictions:
+                self.stats['ml_predictions'] += 1
+                
+                # Check for threats
+                for name, pred in predictions.items():
+                    if pred.is_threat:
+                        self.stats['threats_detected'] += 1
+                        ml_prediction = pred
+                        
+                        logger.warning(
+                            f"🚨 ML THREAT: {pred.threat_type} | "
+                            f"{features.src_ip}:{features.src_port} -> "
+                            f"{features.dst_ip}:{features.dst_port} | "
+                            f"Model: {name} | Confidence: {pred.confidence:.2%}"
+                        )
+                        
+                        # Call threat callbacks
+                        for callback in self.threat_callbacks:
+                            try:
+                                callback(features, pred)
+                            except Exception as e:
+                                logger.error(f"Threat callback error: {e}")
+        
+        # Log packet (if interesting)
+        if features.has_payload or ml_prediction:
+            self._log_packet(features, flow_data, ml_prediction)
     
-    def _process_suricata_event(self, event: Dict[str, Any]):
-        """Process a Suricata event from eve.json"""
-        event_type = event.get('event_type', '')
-        
-        if event_type == 'flow':
-            self.stats['suricata_flows'] += 1
-            self._log_flow(event)
-        
-        elif event_type == 'alert':
-            self.stats['suricata_alerts'] += 1
-            self._log_alert(event)
-        
-        elif event_type == 'dns':
-            self._log_dns(event)
+    def _log_packet(
+        self, 
+        features: PacketFeatures, 
+        flow_data: Dict,
+        ml_prediction: Optional[MLPrediction] = None
+    ):
+        """Log packet to JSON file"""
+        try:
+            log_entry = {
+                'packet': asdict(features),
+                'flow': flow_data,
+                'ml_prediction': asdict(ml_prediction) if ml_prediction else None
+            }
+            
+            with open(self.log_file, 'a') as f:
+                f.write(json.dumps(log_entry) + '\n')
+                
+        except Exception as e:
+            logger.error(f"Logging error: {e}")
     
-    def _log_flow(self, event: Dict[str, Any]):
-        """Log Suricata flow"""
-        src = f"{event.get('src_ip', '?')}:{event.get('src_port', '?')}"
-        dst = f"{event.get('dest_ip', '?')}:{event.get('dest_port', '?')}"
-        proto = event.get('proto', '?')
-        app_proto = event.get('app_proto', 'unknown')
+    def _process_dpdk_features(self, dpdk_features: DPDKPacketFeatures):
+        """Process features extracted by DPDK processor"""
+        self.stats['packets_captured'] += 1
+        self.stats['packets_processed'] += 1
         
-        flow = event.get('flow', {})
-        bytes_to = flow.get('bytes_toserver', 0)
-        bytes_from = flow.get('bytes_toclient', 0)
+        # Convert DPDK features to dict for compatibility
+        feature_dict = dpdk_features.to_dict()
         
-        logger.debug(f"FLOW: {src} → {dst} ({proto}/{app_proto}) "
-                    f"↑{bytes_to}B ↓{bytes_from}B")
-    
-    def _log_alert(self, event: Dict[str, Any]):
-        """Log Suricata alert"""
-        src = f"{event.get('src_ip', '?')}:{event.get('src_port', '?')}"
-        dst = f"{event.get('dest_ip', '?')}:{event.get('dest_port', '?')}"
-        alert = event.get('alert', {})
-        signature = alert.get('signature', 'Unknown')
-        severity = alert.get('severity', 3)
-        
-        logger.warning(f"🚨 SURICATA ALERT: {src} → {dst} | {signature} (severity: {severity})")
-    
-    def _log_dns(self, event: Dict[str, Any]):
-        """Log DNS query"""
-        dns = event.get('dns', {})
-        query = dns.get('rrname', '?')
-        qtype = dns.get('rrtype', '?')
-        src_ip = event.get('src_ip', '?')
-        
-        logger.debug(f"DNS: {src_ip} query {query} ({qtype})")
-    
-    def start_with_suricata(self, count: int = 0, timeout: int = None):
-        """Start packet capture with Suricata monitoring
-        
-        Args:
-            count: Number of packets to capture (0 = infinite)
-            timeout: Timeout in seconds (None = no timeout)
-        """
-        self.running = True
-        
-        # Start Suricata monitor in background thread
-        self.suricata_thread = threading.Thread(
-            target=self.watch_suricata_eve,
-            daemon=True
+        # Create PacketFeatures object for compatibility with existing code
+        # (if needed for callbacks, otherwise use feature_dict directly)
+        features = PacketFeatures(
+            timestamp=dpdk_features.timestamp,
+            src_ip=dpdk_features.src_ip,
+            dst_ip=dpdk_features.dst_ip,
+            src_port=dpdk_features.src_port,
+            dst_port=dpdk_features.dst_port,
+            protocol=dpdk_features.protocol,
+            protocol_num=dpdk_features.protocol_num,
+            size=dpdk_features.size,
+            payload_size=dpdk_features.payload_size,
+            flags=dpdk_features.tcp_flags,
+            ttl=dpdk_features.ttl,
+            tcp_flags=dpdk_features.tcp_flags,
+            seq_num=dpdk_features.seq_num,
+            ack_num=dpdk_features.ack_num,
+            window_size=dpdk_features.window_size,
+            app_proto=dpdk_features.app_proto,
+            http_method=dpdk_features.http_method,
+            http_uri=dpdk_features.http_uri,
+            http_host=dpdk_features.http_host,
+            dns_query=dpdk_features.dns_query,
+            payload_entropy=dpdk_features.payload_entropy,
+            payload_printable_ratio=dpdk_features.payload_printable_ratio,
+            has_payload=dpdk_features.has_payload,
+            raw_payload=dpdk_features.payload_hex
         )
-        self.suricata_thread.start()
-        logger.info("Started Suricata monitor thread")
         
-        # Start packet capture
-        self.start_capture(count=count, timeout=timeout)
+        # Update flow tracker
+        flow_data = self.flow_tracker.update_flow(features)
+        
+        # Run ML prediction if enabled
+        ml_prediction = None
+        if self.ml_enabled and self.model_manager:
+            feature_dict.update(flow_data)  # Add flow features
+            
+            # Run all models
+            predictions = self.model_manager.predict_all(feature_dict, data_type="network")
+            
+            if predictions:
+                self.stats['ml_predictions'] += 1
+                
+                # Check for threats
+                for name, pred in predictions.items():
+                    if pred.is_threat:
+                        self.stats['threats_detected'] += 1
+                        ml_prediction = pred
+                        
+                        logger.warning(
+                            f"🚨 ML THREAT: {pred.threat_type} | "
+                            f"{features.src_ip}:{features.src_port} -> "
+                            f"{features.dst_ip}:{features.dst_port} | "
+                            f"Model: {name} | Confidence: {pred.confidence:.2%}"
+                        )
+                        
+                        # Call threat callbacks
+                        for callback in self.threat_callbacks:
+                            try:
+                                callback(features, pred)
+                            except Exception as e:
+                                logger.error(f"Threat callback error: {e}")
+        
+        # Log packet (if interesting or suspicious)
+        if features.has_payload or ml_prediction or dpdk_features.suspicious:
+            self._log_packet(features, flow_data, ml_prediction)
+        
+        # Log DPDK-flagged suspicious packets
+        if dpdk_features.suspicious:
+            logger.warning(
+                f"🚨 DPDK SUSPICIOUS: {features.src_ip}:{features.src_port} -> "
+                f"{features.dst_ip}:{features.dst_port} [{features.protocol}]"
+            )
+    
+    def _cleanup_thread(self):
+        """Background thread to cleanup expired flows"""
+        while not self._stop_event.is_set():
+            expired = self.flow_tracker.cleanup_expired()
+            if expired > 0:
+                logger.debug(f"Cleaned up {expired} expired flows")
+            self._stop_event.wait(30)  # Run every 30 seconds
+    
+    def start(self):
+        """Start packet capture (DPDK or Scapy mode)"""
+        logger.info("Starting packet capture...")
+        self._running = True
+        self._stop_event.clear()
+        
+        # Start cleanup thread
+        cleanup_thread = threading.Thread(target=self._cleanup_thread, daemon=True)
+        cleanup_thread.start()
+        
+        if self.dpdk_mode:
+            # DPDK mode: consume features from DPDK processor
+            logger.info("Starting DPDK feature consumer...")
+            self.dpdk_consumer.start()
+            
+            try:
+                for dpdk_features in self.dpdk_consumer.consume():
+                    if self._stop_event.is_set():
+                        break
+                    self._process_dpdk_features(dpdk_features)
+            
+            except KeyboardInterrupt:
+                pass
+            except Exception as e:
+                logger.error(f"DPDK consumer error: {e}")
+                raise
+            finally:
+                self.dpdk_consumer.stop()
+        
+        else:
+            # Legacy Scapy mode (DEPRECATED)
+            if not getattr(self, 'scapy_available', False) and not SCAPY_AVAILABLE:
+                logger.error("Cannot start packet capture - scapy not available")
+                return
+            
+            try:
+                sniff(
+                    iface=self.interface,
+                    filter=self.bpf_filter,
+                    prn=self._packet_callback,
+                    store=False,
+                    stop_filter=lambda x: self._stop_event.is_set()
+                )
+            except PermissionError:
+                logger.error("Permission denied. Run as root or with CAP_NET_RAW capability.")
+                raise
+            except Exception as e:
+                logger.error(f"Capture error: {e}")
+                raise
+            finally:
+                self._running = False
+    
+    def stop(self):
+        """Stop packet capture"""
+        if not getattr(self, '_stop_event', None):
+            return
+        logger.info("Stopping packet capture...")
+        self._stop_event.set()
+        self._running = False
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get capture statistics"""
+        stats = self.stats.copy()
+        if hasattr(self, 'flow_tracker'):
+            stats['active_flows'] = len(self.flow_tracker.flows)
+        return stats
+
+
+
+def signal_handler(sig, frame):
+    """Handle shutdown signals"""
+    logger.info("Shutdown signal received")
+    sys.exit(0)
 
 
 def main():
     """Main entry point"""
     import argparse
     
-    parser = argparse.ArgumentParser(description='Packet Inspector - Network packet analysis with Suricata')
-    parser.add_argument('-i', '--interface', default='eth0', help='Network interface to capture on')
-    parser.add_argument('-c', '--count', type=int, default=0, help='Number of packets to capture (0 = infinite)')
-    parser.add_argument('-t', '--timeout', type=int, default=None, help='Capture timeout in seconds')
-    parser.add_argument('-e', '--eve-json', default='logs/eve.json', help='Path to Suricata eve.json')
-    parser.add_argument('--suricata', action='store_true', help='Enable Suricata integration')
+    parser = argparse.ArgumentParser(
+        description="Packet Inspector with ML (DPDK or Scapy mode)",
+        epilog="Example: sudo python3 packet_inspector.py --dpdk --dpdk-json /tmp/dpdk_features.json"
+    )
+    
+    # Capture mode
+    parser.add_argument("--dpdk", action="store_true", 
+                       help="Use DPDK mode (recommended for production)")
+    parser.add_argument("--dpdk-json", default="/tmp/dpdk_features.json",
+                       help="Path to DPDK feature JSON file (default: /tmp/dpdk_features.json)")
+    
+    # Scapy mode (legacy, deprecated)
+    parser.add_argument("-i", "--interface", help="Network interface (Scapy mode only)")
+    parser.add_argument("-f", "--filter", default="ip", help="BPF filter (Scapy mode only, default: ip)")
+    
+    # ML options
+    parser.add_argument("--no-ml", action="store_true", help="Disable ML predictions")
+    parser.add_argument("--load-model", help="Path to ML model to load")
+    parser.add_argument("--model-name", default="custom", help="Name for loaded model")
+    parser.add_argument("--model-type", default="custom", 
+                       choices=['insider_threat', 'anomaly', 'ddos', 'custom'],
+                       help="Type of model")
     
     args = parser.parse_args()
     
+    # Warn if using deprecated Scapy mode
+    if not args.dpdk:
+        logger.warning("=" * 70)
+        logger.warning("⚠️  WARNING: Scapy mode is DEPRECATED")
+        logger.warning("⚠️  For production, use --dpdk for high-performance packet processing")
+        logger.warning("=" * 70)
+    
+    # Setup signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    # Create logs directory
+    os.makedirs("logs", exist_ok=True)
+    
+    # Load model if specified
+    if args.load_model and ML_AVAILABLE:
+        manager = get_model_manager()
+        manager.load_model(args.model_name, args.load_model, args.model_type)
+    
+    # Create and start inspector
     inspector = PacketInspector(
         interface=args.interface,
-        eve_json_path=args.eve_json
+        bpf_filter=args.filter,
+        ml_enabled=not args.no_ml,
+        dpdk_mode=args.dpdk,
+        dpdk_json_path=args.dpdk_json
     )
     
-    # Handle Ctrl+C gracefully
-    def signal_handler(sig, frame):
-        logger.info("\nStopping capture...")
-        inspector.stop_capture()
-        exit(0)
+    logger.info("=" * 50)
+    logger.info(f"Packet Inspector Starting ({'DPDK' if args.dpdk else 'Scapy'})")
+    logger.info("=" * 50)
     
-    signal.signal(signal.SIGINT, signal_handler)
-    
-    if args.suricata:
-        logger.info("Starting with Suricata integration...")
-        inspector.start_with_suricata(count=args.count, timeout=args.timeout)
-    else:
-        logger.info("Starting Scapy-only mode...")
-        inspector.start_capture(count=args.count, timeout=args.timeout)
+    try:
+        inspector.start()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        inspector.stop()
+        
+        # Print statistics
+        stats = inspector.get_stats()
+        logger.info("\nCapture Statistics:")
+        for key, value in stats.items():
+            logger.info(f"  {key}: {value}")
 
 
 if __name__ == "__main__":

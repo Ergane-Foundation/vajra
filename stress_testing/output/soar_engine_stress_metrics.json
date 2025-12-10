@@ -1,0 +1,6 @@
+{
+  "throughput": 500,
+  "avg_latency_ms": 2.0,
+  "p99_latency_ms": 10.0,
+  "block_rate": 0.3
+}

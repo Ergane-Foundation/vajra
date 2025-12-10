@@ -14,13 +14,13 @@ Features:
 
 Usage:
     # Train all models and update FL server
-    python3 fl_client.py --all --server-host 192.168.1.100
+    python3 fl_client_manager.py --all --server-host 192.168.1.100
     
     # Train specific model
-    python3 fl_client.py --model sqli --server-host 192.168.1.100
+    python3 fl_client_manager.py --model sqli --server-host 192.168.1.100
     
     # Dry run (train locally, don't send updates)
-    python3 fl_client.py --all --dry-run
+    python3 fl_client_manager.py --all --dry-run
 """
 
 import os
@@ -29,10 +29,9 @@ import argparse
 import json
 import pickle
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional
 from datetime import datetime, timedelta
-from collections import defaultdict, Counter
-import math
+from collections import defaultdict
 
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
@@ -70,6 +69,7 @@ MODEL_CONFIGS = {
         'signatures': [],  # All other attacks
     }
 }
+
 
 # ============================================================================
 # Data Loading & Feature Extraction
@@ -113,7 +113,7 @@ class EvejsonParser:
                                 timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
                                 if timestamp >= cutoff_time:
                                     alerts.append(event)
-                    except (json.JSONDecodeError, ValueError):
+                    except json.JSONDecodeError:
                         continue
             
             logger.info(f"Loaded {len(alerts)} alerts from last {hours} hours")
@@ -121,26 +121,7 @@ class EvejsonParser:
         
         except Exception as e:
             logger.error(f"Error loading eve.json: {e}")
-            logger.error(f"Error loading eve.json: {e}")
             return []
-
-
-def calculate_entropy(data: str) -> float:
-    """Calculate Shannon entropy of string"""
-    if not data:
-        return 0.0
-    
-    # Count character frequencies
-    counts = Counter(data)
-    total = len(data)
-    
-    # Calculate entropy
-    entropy = 0.0
-    for count in counts.values():
-        probability = count / total
-        entropy -= probability * math.log2(probability)
-    
-    return entropy
 
 
 class FeatureExtractor:
@@ -215,6 +196,28 @@ class FeatureExtractor:
         
         return 'general'
 
+
+def calculate_entropy(data: str) -> float:
+    """Calculate Shannon entropy of string"""
+    if not data:
+        return 0.0
+    
+    from collections import Counter
+    import math
+    
+    # Count character frequencies
+    counts = Counter(data)
+    total = len(data)
+    
+    # Calculate entropy
+    entropy = 0.0
+    for count in counts.values():
+        probability = count / total
+        entropy -= probability * math.log2(probability)
+    
+    return entropy
+
+
 # ============================================================================
 # Local Training
 # ============================================================================
@@ -222,7 +225,7 @@ class FeatureExtractor:
 class LocalTrainer:
     """Train ML models locally on firewall data"""
     
-    def __init__(self, model_type: str = 'general'):
+    def __init__(self, model_type: str):
         self.model_type = model_type
         self.model = None
         self.feature_names = []
@@ -264,7 +267,7 @@ class LocalTrainer:
         
         # Add some benign samples (synthetic for now)
         # In production, you'd have legitimate traffic logs
-        num_benign = max(len(X_list) // 2, 10)
+        num_benign = len(X_list) // 2
         for _ in range(num_benign):
             benign_features = [0.0] * len(self.feature_names)
             X_list.append(benign_features)
@@ -296,14 +299,15 @@ class LocalTrainer:
             X, y, test_size=0.2, random_state=42, stratify=y
         )
         
-        # Train Random Forest
-        logger.info(f"Training {self.model_type} model...")
+        # Train model
         self.model = RandomForestClassifier(
             n_estimators=100,
             max_depth=10,
             random_state=42,
             n_jobs=-1
         )
+        
+        logger.info(f"Training {self.model_type} model...")
         self.model.fit(X_train, y_train)
         
         # Evaluate
@@ -312,7 +316,7 @@ class LocalTrainer:
         metrics = {
             'accuracy': accuracy_score(y_test, y_pred),
             'precision': precision_score(y_test, y_pred, zero_division=0),
-            'recall': recall_score(y_test, y_pred, zero_division=0)
+            'recall': recall_score(y_test, y_pred, zero_division=0),
         }
         
         logger.info(f"✓ {self.model_type} - Accuracy: {metrics['accuracy']:.3f}, "
@@ -329,19 +333,9 @@ class LocalTrainer:
         # In production FL, you'd extract weights/parameters
         return pickle.dumps(self.model)
     
-    def set_model_parameters(self, parameters):
-        """Set model parameters from server"""
-        if parameters:
-            try:
-                self.model = pickle.loads(parameters)
-                logger.debug(f"Updated {self.model_type} model from server parameters")
-            except Exception as e:
-                logger.warning(f"Could not set parameters for {self.model_type}: {e}")
-    
     def save_model(self, path: Path):
         """Save model to disk"""
         if self.model:
-            path.parent.mkdir(parents=True, exist_ok=True)
             with open(path, 'wb') as f:
                 pickle.dump(self.model, f)
             logger.info(f"Saved {self.model_type} model to {path}")
@@ -370,7 +364,12 @@ class NGFWFlowerClient(fl.client.NumPyClient):
     def set_parameters(self, parameters):
         """Set model parameters from server"""
         if parameters and len(parameters) > 0:
-            self.trainer.set_model_parameters(parameters[0])
+            try:
+                # Deserialize parameters and update model
+                self.trainer.model = pickle.loads(parameters[0])
+                logger.debug(f"Updated {self.model_type} model from server parameters")
+            except Exception as e:
+                logger.warning(f"Could not set parameters for {self.model_type}: {e}")
     
     def fit(self, parameters, config):
         """Train model on local data"""
@@ -409,9 +408,9 @@ class NGFWFlowerClient(fl.client.NumPyClient):
 class FLClientManager:
     """Manage FL clients for different model types"""
     
-    def __init__(self, server_host: str = "localhost", eve_json_path: str = "logs/eve.json"):
+    def __init__(self, server_host: str = "localhost"):
         self.server_host = server_host
-        self.parser = EvejsonParser(eve_json_path)
+        self.parser = EvejsonParser()
     
     def train_and_update(self, model_type: str, dry_run: bool = False):
         """
@@ -446,7 +445,8 @@ class FLClientManager:
         metrics = trainer.train(X, y)
         
         # Save local model
-        local_model_path = Path("ml_models") / f"{model_type}_local.pkl"
+        local_model_path = Path("fl_models") / f"{model_type}_local.pkl"
+        local_model_path.parent.mkdir(exist_ok=True)
         trainer.save_model(local_model_path)
         
         if dry_run:
@@ -484,7 +484,7 @@ class FLClientManager:
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description="FL Client Manager for VAJRA Firewall")
+    parser = argparse.ArgumentParser(description="FL Client Manager for NGFW")
     parser.add_argument('--all', action='store_true', help='Train all models')
     parser.add_argument('--model', type=str, choices=['sqli', 'ddos', 'xss', 'general'],
                         help='Specific model to train')
@@ -492,19 +492,16 @@ def main():
                         help='FL server hostname/IP')
     parser.add_argument('--dry-run', action='store_true',
                         help='Train locally but don\'t send to server')
-    parser.add_argument('--eve-json', type=str, default='logs/eve.json',
+    parser.add_argument('--eve-path', type=str, default='logs/eve.json',
                         help='Path to eve.json file')
-    parser.add_argument('--hours', type=int, default=24,
-                        help='Hours of data to use for training')
     
     args = parser.parse_args()
     
     # Ensure logs directory exists
     Path("logs").mkdir(exist_ok=True)
-    Path("ml_models").mkdir(exist_ok=True)
     
     # Create client manager
-    manager = FLClientManager(server_host=args.server_host, eve_json_path=args.eve_json)
+    manager = FLClientManager(server_host=args.server_host)
     
     try:
         if args.all:
@@ -523,7 +520,7 @@ def main():
         logger.info("\nTraining interrupted")
     
     except Exception as e:
-        logger.error(f"Training failed: {e}", exc_info=True)
+        logger.error(f"Training failed: {e}")
 
 
 if __name__ == "__main__":

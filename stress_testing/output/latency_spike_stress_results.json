@@ -1,0 +1,8 @@
+{
+  "timestamp": "2025-12-09T12:43:07.871512",
+  "test_type": "latency_spike_stress",
+  "summary": {
+    "throughput": 2169,
+    "threshold_met": true
+  }
+}

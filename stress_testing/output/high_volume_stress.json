@@ -1,0 +1,15 @@
+{
+  "test_name": "high_volume_stress",
+  "status": "passed",
+  "start_time": "2025-12-09T12:43:06.367177",
+  "end_time": "2025-12-09T12:43:06.974222",
+  "duration_seconds": 0.61,
+  "output": "[12:43:06] [INFO] high_volume_stress: \u2713 PASSED\n",
+  "error": null,
+  "metrics": {
+    "throughput": 1911,
+    "threshold_met": true
+  },
+  "validation_failures": [],
+  "threshold_met": true
+}

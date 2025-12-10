@@ -1,0 +1,240 @@
+{
+  "test_id": "20251209_143340",
+  "timestamp": "2025-12-09T14:38:30.046725",
+  "results": [
+    {
+      "scenario": "baseline",
+      "traffic_type": "http",
+      "config": {
+        "rate": 100,
+        "duration": 30,
+        "concurrent": 10
+      },
+      "metrics": {
+        "timestamp": "2025-12-09T14:34:33.412836",
+        "traffic_type": "HTTP",
+        "duration_seconds": 30.104156017303467,
+        "total_requests": 2614,
+        "successful_requests": 2614,
+        "failed_requests": 0,
+        "requests_per_second": 86.83186462684779,
+        "bytes_sent": 0,
+        "bytes_received": 10393264,
+        "throughput_mbps": 2.633998823214316,
+        "avg_latency_ms": 11.189428284228441,
+        "min_latency_ms": 1.3163089752197266,
+        "max_latency_ms": 115.94009399414062,
+        "p50_latency_ms": 10.234832763671875,
+        "p95_latency_ms": 21.708965301513672,
+        "p99_latency_ms": 26.33190155029297,
+        "success_rate": 1.0,
+        "concurrent_connections": 10,
+        "errors": {}
+      }
+    },
+    {
+      "scenario": "normal",
+      "traffic_type": "http",
+      "config": {
+        "rate": 500,
+        "duration": 30,
+        "concurrent": 20
+      },
+      "metrics": {
+        "timestamp": "2025-12-09T14:35:08.489620",
+        "traffic_type": "HTTP",
+        "duration_seconds": 30.069517135620117,
+        "total_requests": 10974,
+        "successful_requests": 10974,
+        "failed_requests": 0,
+        "requests_per_second": 364.9543140485048,
+        "bytes_sent": 0,
+        "bytes_received": 43632624,
+        "throughput_mbps": 11.070696660284844,
+        "avg_latency_ms": 11.117211821215257,
+        "min_latency_ms": 1.0120868682861328,
+        "max_latency_ms": 101.67884826660156,
+        "p50_latency_ms": 9.312152862548828,
+        "p95_latency_ms": 24.6889591217041,
+        "p99_latency_ms": 30.753135681152344,
+        "success_rate": 1.0,
+        "concurrent_connections": 20,
+        "errors": {}
+      }
+    },
+    {
+      "scenario": "peak",
+      "traffic_type": "http",
+      "config": {
+        "rate": 1000,
+        "duration": 30,
+        "concurrent": 30
+      },
+      "metrics": {
+        "timestamp": "2025-12-09T14:35:43.556477",
+        "traffic_type": "HTTP",
+        "duration_seconds": 30.05868625640869,
+        "total_requests": 19847,
+        "successful_requests": 19847,
+        "failed_requests": 0,
+        "requests_per_second": 660.2750310076676,
+        "bytes_sent": 0,
+        "bytes_received": 78911672,
+        "throughput_mbps": 20.029094873706715,
+        "avg_latency_ms": 12.01524910845372,
+        "min_latency_ms": 0.9360313415527344,
+        "max_latency_ms": 124.70602989196777,
+        "p50_latency_ms": 11.18612289428711,
+        "p95_latency_ms": 23.9410400390625,
+        "p99_latency_ms": 36.23199462890625,
+        "success_rate": 1.0,
+        "concurrent_connections": 30,
+        "errors": {}
+      }
+    },
+    {
+      "scenario": "stress",
+      "traffic_type": "http",
+      "config": {
+        "rate": 2000,
+        "duration": 30,
+        "concurrent": 50
+      },
+      "metrics": {
+        "timestamp": "2025-12-09T14:36:18.630220",
+        "traffic_type": "HTTP",
+        "duration_seconds": 30.066834211349487,
+        "total_requests": 23163,
+        "successful_requests": 23163,
+        "failed_requests": 0,
+        "requests_per_second": 770.3837336907435,
+        "bytes_sent": 0,
+        "bytes_received": 92096088,
+        "throughput_mbps": 23.36918430446164,
+        "avg_latency_ms": 36.839923633018294,
+        "min_latency_ms": 1.0972023010253906,
+        "max_latency_ms": 248.27814102172852,
+        "p50_latency_ms": 34.696102142333984,
+        "p95_latency_ms": 63.854217529296875,
+        "p99_latency_ms": 95.8099365234375,
+        "success_rate": 1.0,
+        "concurrent_connections": 50,
+        "errors": {}
+      }
+    },
+    {
+      "scenario": "burst",
+      "traffic_type": "http",
+      "config": {
+        "rate": 500,
+        "duration": 60,
+        "concurrent": 100
+      },
+      "metrics": {
+        "timestamp": "2025-12-09T14:37:23.961885",
+        "traffic_type": "HTTP",
+        "duration_seconds": 60.290282011032104,
+        "total_requests": 27051,
+        "successful_requests": 27051,
+        "failed_requests": 0,
+        "requests_per_second": 448.6792746308621,
+        "bytes_sent": 0,
+        "bytes_received": 107554776,
+        "throughput_mbps": 13.610449187715972,
+        "avg_latency_ms": 18.809823125070892,
+        "min_latency_ms": 0.9398460388183594,
+        "max_latency_ms": 219.67077255249023,
+        "p50_latency_ms": 14.182090759277344,
+        "p95_latency_ms": 48.632144927978516,
+        "p99_latency_ms": 84.99503135681152,
+        "success_rate": 1.0,
+        "concurrent_connections": 100,
+        "errors": {}
+      }
+    },
+    {
+      "scenario": "mixed_http",
+      "traffic_type": "http",
+      "config": {
+        "duration": 60
+      },
+      "metrics": {
+        "timestamp": "2025-12-09T14:38:29.030327",
+        "traffic_type": "HTTP",
+        "duration_seconds": 60.05709099769592,
+        "total_requests": 14205,
+        "successful_requests": 14205,
+        "failed_requests": 0,
+        "requests_per_second": 236.52494258413168,
+        "bytes_sent": 0,
+        "bytes_received": 56479080,
+        "throughput_mbps": 7.174859403339444,
+        "avg_latency_ms": 9.74803843661036,
+        "min_latency_ms": 1.0268688201904297,
+        "max_latency_ms": 99.54309463500977,
+        "p50_latency_ms": 8.116006851196289,
+        "p95_latency_ms": 22.616863250732422,
+        "p99_latency_ms": 28.37991714477539,
+        "success_rate": 1.0,
+        "concurrent_connections": 15,
+        "errors": {}
+      }
+    },
+    {
+      "scenario": "mixed_tcp",
+      "traffic_type": "tcp",
+      "config": {
+        "duration": 60
+      },
+      "metrics": {
+        "timestamp": "2025-12-09T14:38:30.042917",
+        "traffic_type": "TCP",
+        "duration_seconds": 61.071375131607056,
+        "total_requests": 180,
+        "successful_requests": 180,
+        "failed_requests": 0,
+        "requests_per_second": 2.9473710001142956,
+        "bytes_sent": 184320,
+        "bytes_received": 0,
+        "throughput_mbps": 0.023026335938392935,
+        "avg_latency_ms": 5003.014547295041,
+        "min_latency_ms": 5000.181198120117,
+        "max_latency_ms": 5059.33690071106,
+        "p50_latency_ms": 5001.347064971924,
+        "p95_latency_ms": 5006.330966949463,
+        "p99_latency_ms": 5059.310674667358,
+        "success_rate": 1.0,
+        "concurrent_connections": 15,
+        "errors": {}
+      }
+    },
+    {
+      "scenario": "mixed_udp",
+      "traffic_type": "udp",
+      "config": {
+        "duration": 60
+      },
+      "metrics": {
+        "timestamp": "2025-12-09T14:38:30.046013",
+        "traffic_type": "UDP",
+        "duration_seconds": 61.063477993011475,
+        "total_requests": 290,
+        "successful_requests": 290,
+        "failed_requests": 0,
+        "requests_per_second": 4.7491562801776475,
+        "bytes_sent": 148480,
+        "bytes_received": 0,
+        "throughput_mbps": 0.018551391719443935,
+        "avg_latency_ms": 2001.6314999810581,
+        "min_latency_ms": 2000.0808238983154,
+        "max_latency_ms": 2012.660026550293,
+        "p50_latency_ms": 2001.2261867523193,
+        "p95_latency_ms": 2003.7429332733154,
+        "p99_latency_ms": 2007.3728561401367,
+        "success_rate": 1.0,
+        "concurrent_connections": 10,
+        "errors": {}
+      }
+    }
+  ]
+}

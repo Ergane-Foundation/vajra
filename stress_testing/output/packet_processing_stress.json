@@ -1,0 +1,15 @@
+{
+  "test_name": "packet_processing_stress",
+  "status": "passed",
+  "start_time": "2025-12-09T12:42:52.789331",
+  "end_time": "2025-12-09T12:42:53.325080",
+  "duration_seconds": 0.54,
+  "output": "[12:42:53] [INFO] packet_processing_stress: \u2713 PASSED\n",
+  "error": null,
+  "metrics": {
+    "throughput": 3270,
+    "threshold_met": true
+  },
+  "validation_failures": [],
+  "threshold_met": true
+}

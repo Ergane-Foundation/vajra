@@ -1,0 +1,8 @@
+{
+  "timestamp": "2025-12-09T12:43:04.078803",
+  "test_type": "unified_logging_stress",
+  "summary": {
+    "throughput": 2095,
+    "threshold_met": true
+  }
+}

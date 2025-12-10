@@ -1,0 +1,19 @@
+{
+  "test_name": "soar_engine_stress",
+  "status": "failed",
+  "start_time": "2025-12-09T12:42:56.286142",
+  "end_time": "2025-12-09T12:42:58.118992",
+  "duration_seconds": 1.83,
+  "output": "[12:42:58.110] [INFO] ============================================================\n[12:42:58.110] [INFO] SOAR ENGINE STRESS TEST\n[12:42:58.110] [INFO] ============================================================\n[12:42:58.110] [INFO]   Throughput: 500 alerts/s\n[12:42:58.110] [INFO]   Block Rate: 30.0%\n[12:42:58.111] [INFO] SOAR ENGINE STRESS TEST COMPLETE\n",
+  "error": null,
+  "metrics": {
+    "throughput": 500,
+    "avg_latency_ms": 2.0,
+    "p99_latency_ms": 10.0,
+    "block_rate": 0.3
+  },
+  "validation_failures": [
+    "Block rate 30.0% < 50.0% min"
+  ],
+  "threshold_met": false
+}

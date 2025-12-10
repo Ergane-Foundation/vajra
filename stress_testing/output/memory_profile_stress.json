@@ -1,0 +1,15 @@
+{
+  "test_name": "memory_profile_stress",
+  "status": "passed",
+  "start_time": "2025-12-09T12:43:05.349540",
+  "end_time": "2025-12-09T12:43:06.366822",
+  "duration_seconds": 1.02,
+  "output": "[12:43:06] [INFO] memory_profile_stress: \u2713 PASSED\n",
+  "error": null,
+  "metrics": {
+    "throughput": 4669,
+    "threshold_met": true
+  },
+  "validation_failures": [],
+  "threshold_met": true
+}

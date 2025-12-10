@@ -1,11 +1,11 @@
 #!/bin/bash
-# Setup script for first_prototype environment
-# Run this before testing the first prototype
+# Setup script for Linux environment
+# Run this on your Linux machine before testing
 
 set -e  # Exit on error
 
 echo "=================================================="
-echo "L5 NGFW - First Prototype Setup"
+echo "L5 NGFW - Linux Environment Setup"
 echo "=================================================="
 
 # Check Python version
@@ -30,27 +30,16 @@ echo ""
 echo "[3/6] Upgrading pip..."
 pip install --upgrade pip
 
-# Install required packages for first_prototype
+# Install required packages
 echo ""
 echo "[4/6] Installing required Python packages..."
-echo "  - Core ML packages: numpy, scikit-learn, joblib"
-echo "  - Network analysis: scapy"
-echo "  - Data processing: pandas"
-echo ""
-
-pip install numpy pandas scikit-learn joblib scapy
+pip install numpy pandas scikit-learn joblib torch requests scapy imbalanced-learn google-generativeai
 
 # Create logs directory
 echo ""
 echo "[5/6] Creating logs directory..."
 mkdir -p logs
-chmod 755 logs
-
-# Create ml_models directory if not exists
-if [ ! -d "ml_models" ]; then
-    mkdir -p ml_models
-    echo "Created ml_models directory"
-fi
+chmod 777 logs
 
 # Verify installations
 echo ""
@@ -83,13 +72,24 @@ try:
     print("✅ joblib:", joblib.__version__)
 except ImportError:
     print("❌ joblib: NOT INSTALLED")
+    
+try:
+    import torch
+    print("✅ torch:", torch.__version__)
+except ImportError:
+    print("❌ torch: NOT INSTALLED")
 
 try:
-    import scapy
-    print("✅ scapy: installed")
+    import requests
+    print("✅ requests:", requests.__version__)
 except ImportError:
-    print("❌ scapy: NOT INSTALLED")
-    print("   Note: scapy may require root/sudo for packet capture")
+    print("❌ requests: NOT INSTALLED")
+
+try:
+    import google.generativeai
+    print("✅ google-generativeai: installed")
+except ImportError:
+    print("❌ google-generativeai: NOT INSTALLED")
 EOF
 
 echo ""
@@ -100,17 +100,9 @@ echo ""
 echo "To activate the environment, run:"
 echo "  source venv/bin/activate"
 echo ""
-echo "Available components in first_prototype:"
-echo "  - packet_inspector.py : Scapy + Suricata packet analysis"
-echo "  - fl_client.py        : Federated learning client"
-echo "  - soar_engine.py      : SOAR automated response"
-echo "  - kafka_queue.py      : Event streaming (mock)"
-echo "  - test.py             : Full Suricata + Scapy testing"
-echo ""
-echo "To run tests:"
-echo "  python3 test.py                    # Suricata + Scapy monitor"
-echo "  sudo python3 packet_inspector.py --suricata  # Packet inspector with Suricata"
-echo "  python3 fl_client.py --dry-run    # FL training (local only)"
-echo ""
-echo "Note: Packet capture requires root/sudo privileges"
+echo "To test the models, run:"
+echo "  python3 test_real_models.py"
+echo "  python3 attack_test.py --target 192.168.1.6 --eta"
+echo "  python3 attack_test.py --target 192.168.1.6 --ml"
+echo "  python3 attack_test.py --target 192.168.1.6 --uba"
 echo ""
