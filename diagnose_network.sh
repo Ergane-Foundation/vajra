@@ -201,7 +201,7 @@ echo ""
 # 7. Check Suricata Configuration
 # =============================================================================
 echo -e "${YELLOW}7️⃣  Suricata Configuration:${NC}"
-SURI_CONFIG="suricata_runtime.yaml"
+SURI_CONFIG="config/suricata/suricata.runtime.yaml"
 
 if [ -f "$SURI_CONFIG" ]; then
     echo -e "  ${GREEN}✓${NC} Configuration file exists: $SURI_CONFIG"
