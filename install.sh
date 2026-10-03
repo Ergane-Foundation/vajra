@@ -351,8 +351,8 @@ echo -e "  ${CYAN}sudo ./stop.sh${NC}            # Stop everything"
 echo ""
 
 echo -e "${BOLD}Federated Learning (Optional):${NC}"
-echo -e "  ${CYAN}python3 fl_client_manager.py --all --dry-run${NC}  # Local training test"
-echo -e "  ${CYAN}python3 fl_server_manager.py --all${NC}            # Start FL server"
+echo -e "  ${CYAN}python3 -m vajra.experimental.federated.client --all --dry-run${NC}  # Local training test"
+echo -e "  ${CYAN}python3 -m vajra.experimental.federated.server --all${NC}            # Start FL server"
 echo ""
 
 echo -e "${BOLD}Documentation:${NC}"

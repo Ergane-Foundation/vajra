@@ -9,7 +9,7 @@ Automatically triggers dynamic rule generation when:
 - Anomaly detection triggers at critical severity
 - New threat types are identified
 
-This module is imported by soar_engine.py and automatically available.
+Experimental: not yet wired into the SOAR engine.
 """
 
 import logging
@@ -20,7 +20,7 @@ from dataclasses import dataclass
 
 # Try to import AI rule generator
 try:
-    from ai_firewall_updater import (
+    from vajra.experimental.rulegen.ai_firewall import (
         AIFirewallRuleManager,
         ThreatContext,
         ThreatSeverity,

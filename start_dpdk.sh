@@ -6,6 +6,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+export PYTHONPATH="$SCRIPT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
 
 # Configuration
 DPDK_PROCESSOR="/usr/local/bin/dpdk_packet_processor"
@@ -162,7 +163,7 @@ echo ""
 echo "Step 6: Starting Python ML packet inspector..."
 
 # Start packet inspector in DPDK mode
-nohup python3 "$SCRIPT_DIR/packet_inspector.py" \
+nohup python3 -m vajra.inspection.packet_inspector \
     --dpdk \
     --dpdk-json "$DPDK_FEATURES_FILE" \
     > "$LOG_DIR/packet_inspector.log" 2>&1 &
@@ -182,8 +183,8 @@ echo ""
 echo "Step 7: Starting other ML components..."
 
 # Start SOAR engine if it exists
-if [ -f "$SCRIPT_DIR/soar_engine.py" ]; then
-    nohup python3 "$SCRIPT_DIR/soar_engine.py" \
+if [ -f "$SCRIPT_DIR/src/vajra/soar/engine.py" ]; then
+    nohup python3 -m vajra.soar.engine \
         > "$LOG_DIR/soar_engine.log" 2>&1 &
     SOAR_PID=$!
     echo $SOAR_PID > "$PID_DIR/soar_engine.pid"
@@ -191,8 +192,8 @@ if [ -f "$SCRIPT_DIR/soar_engine.py" ]; then
 fi
 
 # Start unified logger if it exists
-if [ -f "$SCRIPT_DIR/unified_logger.py" ]; then
-    nohup python3 "$SCRIPT_DIR/unified_logger.py" \
+if [ -f "$SCRIPT_DIR/src/vajra/pipeline/unified_logger.py" ]; then
+    nohup python3 -m vajra.pipeline.unified_logger \
         > "$LOG_DIR/unified_logger.log" 2>&1 &
     LOGGER_PID=$!
     echo $LOGGER_PID > "$PID_DIR/unified_logger.pid"

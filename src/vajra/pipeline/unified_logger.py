@@ -434,7 +434,7 @@ class UnifiedLogger:
             # Log high severity events
             if event.threat_level in ('critical', 'high'):
                 logger.warning(
-                    f"🚨 [{event.event_type}] {event.threat_level.upper()}: "
+                    f"[ALERT] [{event.event_type}] {event.threat_level.upper()}: "
                     f"{event.signature} | {event.src_ip} -> {event.dst_ip}"
                 )
                 

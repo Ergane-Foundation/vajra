@@ -89,7 +89,7 @@ class ETAEngine:
         
         # Try to load the real trained model
         try:
-            from model_loader import load_eta_model
+            from vajra.ml.loader import load_eta_model
             real_model = load_eta_model(model_path)
             if real_model:
                 self.model = real_model
@@ -131,7 +131,7 @@ class ETAEngine:
             # Use the real model if loaded
             if self.model_loaded:
                 try:
-                    from model_loader import get_eta_predictions
+                    from vajra.ml.loader import get_eta_predictions
                     result = get_eta_predictions(self.model, flow_data)
                     prediction = result['prediction']
                     confidence = result['confidence']

@@ -39,42 +39,42 @@ logger = logging.getLogger("threat_orchestrator")
 
 # Import detection engines
 try:
-    from flowprint_engine import get_flowprint_engine, FingerprintMatch
+    from vajra.experimental.engines.flowprint import get_flowprint_engine, FingerprintMatch
     FLOWPRINT_AVAILABLE = True
 except ImportError as e:
     FLOWPRINT_AVAILABLE = False
     logger.warning(f"FlowPrint not available: {e}")
 
 try:
-    from kitsune_engine import get_kitsune_engine, KitsuneAnomaly
+    from vajra.experimental.engines.kitsune import get_kitsune_engine, KitsuneAnomaly
     KITSUNE_AVAILABLE = True
 except ImportError as e:
     KITSUNE_AVAILABLE = False
     logger.warning(f"Kitsune not available: {e}")
 
 try:
-    from etbert_engine import get_etbert_engine, EncryptedTrafficClassification
+    from vajra.experimental.engines.etbert import get_etbert_engine, EncryptedTrafficClassification
     ETBERT_AVAILABLE = True
 except ImportError as e:
     ETBERT_AVAILABLE = False
     logger.warning(f"ET-BERT not available: {e}")
 
 try:
-    from stratosphere_engine import get_stratosphere_engine, StratosphereAlert
+    from vajra.experimental.engines.stratosphere import get_stratosphere_engine, StratosphereAlert
     STRATOSPHERE_AVAILABLE = True
 except ImportError as e:
     STRATOSPHERE_AVAILABLE = False
     logger.warning(f"Stratosphere not available: {e}")
 
 try:
-    from exploit_detection import get_exploit_detector, ExploitDetection
+    from vajra.experimental.engines.exploit import get_exploit_detector, ExploitDetection
     EXPLOIT_DETECTION_AVAILABLE = True
 except ImportError as e:
     EXPLOIT_DETECTION_AVAILABLE = False
     logger.warning(f"Exploit Detection not available: {e}")
 
 try:
-    from ml_model_manager import get_model_manager, MLModelManager
+    from vajra.ml.manager import get_model_manager, MLModelManager
     ML_MANAGER_AVAILABLE = True
 except ImportError as e:
     ML_MANAGER_AVAILABLE = False

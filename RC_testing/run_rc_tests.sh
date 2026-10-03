@@ -4,7 +4,7 @@
 # =============================================================================
 # 
 # This script automates the entire RC testing process:
-# 1. Starts the NGFW pipeline (eve_watcher.py + start_macos.sh)
+# 1. Starts the NGFW pipeline (eve_watcher + start_macos.sh)
 # 2. Monitors resource consumption
 # 3. Generates reports and visualizations
 #

@@ -1,6 +1,10 @@
 #!/bin/bash
 # Benchmark Runner Script - Tests Packet Inspector Performance
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+export PYTHONPATH="$SCRIPT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+
 echo "=== Firewall Performance Benchmark ==="
 echo ""
 
@@ -18,12 +22,12 @@ MODE=${1:-normal}
 
 if [ "$MODE" == "dpdk" ]; then
     echo "Starting DPDK Packet Inspector..."
-    sudo python3 packet_inspector.py --dpdk > /tmp/packet_inspector.log 2>&1 &
+    sudo env PYTHONPATH="$PYTHONPATH" python3 -m vajra.inspection.packet_inspector --dpdk > /tmp/packet_inspector.log 2>&1 &
     PI_PID=$!
     echo "Packet Inspector PID: $PI_PID"
 elif [ "$MODE" == "normal" ]; then
     echo "Starting Scapy Packet Inspector on $INTERFACE..."
-    sudo python3 packet_inspector.py -i "$INTERFACE" > /tmp/packet_inspector.log 2>&1 &
+    sudo env PYTHONPATH="$PYTHONPATH" python3 -m vajra.inspection.packet_inspector -i "$INTERFACE" > /tmp/packet_inspector.log 2>&1 &
     PI_PID=$!
     echo "Packet Inspector PID: $PI_PID"
 else

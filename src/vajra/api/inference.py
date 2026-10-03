@@ -500,7 +500,7 @@ async def startup_event():
     
     # Initialize unified logger
     try:
-        from unified_logger import get_unified_logger
+        from vajra.pipeline.unified_logger import get_unified_logger
         
         unified_logger = get_unified_logger()
         
@@ -995,7 +995,7 @@ def broadcast_event_to_websockets(event):
 async def shutdown_event():
     """Clean up on shutdown"""
     try:
-        from unified_logger import get_unified_logger
+        from vajra.pipeline.unified_logger import get_unified_logger
         unified_logger = get_unified_logger()
         unified_logger.stop()
         logger.info("Unified logger stopped")

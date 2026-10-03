@@ -32,7 +32,7 @@ except ImportError:
 
 # ML Model Manager imports
 try:
-    from ml_model_manager import get_model_manager, MLPrediction, MLModelManager
+    from vajra.ml.manager import get_model_manager, MLPrediction, MLModelManager
     ML_AVAILABLE = True
 except (ImportError, AttributeError) as e:
     ML_AVAILABLE = False
@@ -43,21 +43,21 @@ except Exception as e:
 
 # Unified Logger imports
 try:
-    from unified_logger import get_unified_logger, UnifiedLogger
+    from vajra.pipeline.unified_logger import get_unified_logger, UnifiedLogger
     UNIFIED_LOGGER_AVAILABLE = True
 except ImportError:
     UNIFIED_LOGGER_AVAILABLE = False
 
 # Packet Inspector imports
 try:
-    from packet_inspector import PacketInspector, PacketFeatures
+    from vajra.inspection.packet_inspector import PacketInspector, PacketFeatures
     PACKET_INSPECTOR_AVAILABLE = True
 except ImportError:
     PACKET_INSPECTOR_AVAILABLE = False
 
 # UBA Engine imports
 try:
-    from uba_engine import get_uba_engine, UBAEngine
+    from vajra.detection.uba import get_uba_engine, UBAEngine
     UBA_AVAILABLE = True
 except ImportError:
     UBA_AVAILABLE = False

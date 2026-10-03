@@ -209,7 +209,7 @@ The processor exports features to Python ML pipeline via JSON:
 }
 ```
 
-Python consumer (`../dpdk_consumer.py`) reads these features and feeds them to ML models.
+Python consumer (`src/vajra/inspection/dpdk_consumer.py`) reads these features and feeds them to ML models.
 
 ## Performance
 
@@ -296,7 +296,7 @@ sudo iptables -L -n
 
 1. Update `struct packet_features` in `dpdk_packet_processor.cpp`
 2. Extract feature in `extract_packet_features()`
-3. Update `DPDKPacketFeatures` in `../dpdk_consumer.py`
+3. Update `DPDKPacketFeatures` in `src/vajra/inspection/dpdk_consumer.py`
 4. Rebuild: `ninja` or `make`
 
 ### Debugging

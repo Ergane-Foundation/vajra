@@ -125,8 +125,8 @@ echo ""
 # 4. Check WebSocket Server
 # =============================================================================
 echo -e "${YELLOW}4️⃣  WebSocket Server (Unified Logger):${NC}"
-if pgrep -f "unified_logger.py" > /dev/null; then
-    LOGGER_PID=$(pgrep -f "unified_logger.py" | head -1)
+if pgrep -f "vajra.pipeline.unified_logger" > /dev/null; then
+    LOGGER_PID=$(pgrep -f "vajra.pipeline.unified_logger" | head -1)
     echo -e "  ${GREEN}✓${NC} Unified Logger is running (PID: $LOGGER_PID)"
     
     # Check if port 8765 is listening
@@ -284,7 +284,7 @@ if [ ! -f "$EVE_FILE" ] || [ "$(wc -l < "$EVE_FILE" 2>/dev/null)" -eq 0 ]; then
     ISSUES=$((ISSUES + 1))
 fi
 
-if ! pgrep -f "unified_logger.py" > /dev/null; then
+if ! pgrep -f "vajra.pipeline.unified_logger" > /dev/null; then
     echo -e "${RED}✗${NC} Unified Logger not running"
     echo -e "  → WebSocket events will not be available"
     ISSUES=$((ISSUES + 1))

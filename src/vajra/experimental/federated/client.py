@@ -14,13 +14,13 @@ Features:
 
 Usage:
     # Train all models and update FL server
-    python3 fl_client_manager.py --all --server-host 192.168.1.100
+    python3 -m vajra.experimental.federated.client --all --server-host 192.168.1.100
     
     # Train specific model
-    python3 fl_client_manager.py --model sqli --server-host 192.168.1.100
+    python3 -m vajra.experimental.federated.client --model sqli --server-host 192.168.1.100
     
     # Dry run (train locally, don't send updates)
-    python3 fl_client_manager.py --all --dry-run
+    python3 -m vajra.experimental.federated.client --all --dry-run
 """
 
 import os
@@ -71,9 +71,7 @@ MODEL_CONFIGS = {
 }
 
 
-# ============================================================================
 # Data Loading & Feature Extraction
-# ============================================================================
 
 class EvejsonParser:
     """Parse Suricata eve.json logs"""
@@ -218,9 +216,7 @@ def calculate_entropy(data: str) -> float:
     return entropy
 
 
-# ============================================================================
 # Local Training
-# ============================================================================
 
 class LocalTrainer:
     """Train ML models locally on firewall data"""
@@ -319,7 +315,7 @@ class LocalTrainer:
             'recall': recall_score(y_test, y_pred, zero_division=0),
         }
         
-        logger.info(f"✓ {self.model_type} - Accuracy: {metrics['accuracy']:.3f}, "
+        logger.info(f"[OK] {self.model_type} - Accuracy: {metrics['accuracy']:.3f}, "
                    f"Precision: {metrics['precision']:.3f}, Recall: {metrics['recall']:.3f}")
         
         return metrics
@@ -341,9 +337,7 @@ class LocalTrainer:
             logger.info(f"Saved {self.model_type} model to {path}")
 
 
-# ============================================================================
 # Flower Client
-# ============================================================================
 
 class NGFWFlowerClient(fl.client.NumPyClient):
     """Flower client for NGFW federated learning"""
@@ -401,9 +395,7 @@ class NGFWFlowerClient(fl.client.NumPyClient):
         return 0.0, len(self.X), {"accuracy": accuracy}
 
 
-# ============================================================================
 # Main Client Manager
-# ============================================================================
 
 class FLClientManager:
     """Manage FL clients for different model types"""
@@ -467,7 +459,7 @@ class FLClientManager:
                 client=client,
             )
             
-            logger.info(f"✓ Successfully sent update to FL server for {model_type}")
+            logger.info(f"[OK] Successfully sent update to FL server for {model_type}")
         
         except Exception as e:
             logger.error(f"Failed to connect to FL server for {model_type}: {e}")
@@ -478,9 +470,7 @@ class FLClientManager:
             self.train_and_update(model_type, dry_run)
 
 
-# ============================================================================
 # Main Entry Point
-# ============================================================================
 
 def main():
     """Main entry point"""

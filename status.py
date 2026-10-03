@@ -24,10 +24,10 @@ def main():
     services = [
         ("Suricata", "suricata"),
         ("Kafka", "kafka.Kafka"),
-        ("Kafka Bridge", "kafka_bridge.py"),
-        ("SOAR Engine", "soar_engine.py"),
-        ("Unified Logger", "unified_logger.py"),
-        ("Packet Inspector", "packet_inspector.py")
+        ("Kafka Bridge", "vajra.pipeline.kafka_bridge"),
+        ("SOAR Engine", "vajra.soar.engine"),
+        ("Unified Logger", "vajra.pipeline.unified_logger"),
+        ("Packet Inspector", "vajra.inspection.packet_inspector")
     ]
     
     for name, proc in services:

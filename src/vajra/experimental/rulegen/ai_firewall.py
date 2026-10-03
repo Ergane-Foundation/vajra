@@ -52,9 +52,7 @@ except ImportError:
     GEMINI_AVAILABLE = False
 
 
-# ============================================================================
 # CONFIGURATION
-# ============================================================================
 
 # Path to rules file - uses local rules/local.rules in development, /etc/suricata/rules/local.rules in production
 SURICATA_RULES_PATH = Path("rules/local.rules") if Path("rules/local.rules").exists() else Path("/etc/suricata/rules/local.rules")
@@ -85,9 +83,7 @@ logging.basicConfig(
 logger = logging.getLogger("ai_firewall_updater")
 
 
-# ============================================================================
 # ENUMS & DATA CLASSES
-# ============================================================================
 
 class RuleAction(Enum):
     """Suricata rule actions"""
@@ -181,9 +177,7 @@ class AuditEntry:
     operator: str = "ai_system"
 
 
-# ============================================================================
 # SECURITY & SAFETY MECHANISMS
-# ============================================================================
 
 class RuleLock:
     """File-based locking to prevent concurrent rule updates"""
@@ -341,9 +335,7 @@ class RuleValidator:
         return is_valid, error
 
 
-# ============================================================================
 # AI RULE GENERATOR
-# ============================================================================
 
 class AIRuleGenerator:
     """Generates Suricata rules using Google Gemini AI"""
@@ -536,9 +528,7 @@ class AIRuleGenerator:
             logger.error(f"Failed to save state: {e}")
 
 
-# ============================================================================
 # RULE MANAGER (Orchestration)
-# ============================================================================
 
 class AIFirewallRuleManager:
     """
@@ -874,9 +864,7 @@ class AIFirewallRuleManager:
             logger.error(f"Failed to log audit entry: {e}")
 
 
-# ============================================================================
 # MAIN DEMO / TESTING
-# ============================================================================
 
 def demo_c2_detection():
     """Demo: Generate rule for C2 beaconing threat"""

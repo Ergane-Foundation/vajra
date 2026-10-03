@@ -371,12 +371,12 @@ def test_consumer():
     
     try:
         for features in consumer.consume():
-            print(f"📦 {features.src_ip}:{features.src_port} -> "
+            print(f"{features.src_ip}:{features.src_port} -> "
                   f"{features.dst_ip}:{features.dst_port} [{features.protocol}] "
                   f"size={features.size} entropy={features.payload_entropy:.2f}")
             
             if features.suspicious:
-                print(f"   🚨 SUSPICIOUS")
+                print(f"   [ALERT] SUSPICIOUS")
     
     except KeyboardInterrupt:
         print("\nStopping...")

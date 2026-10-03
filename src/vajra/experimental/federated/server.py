@@ -20,10 +20,10 @@ Architecture:
 
 Usage:
     # Start all FL servers
-    python3 fl_server_manager.py --all
+    python3 -m vajra.experimental.federated.server --all
     
     # Start specific model server
-    python3 fl_server_manager.py --model sqli --port 8081
+    python3 -m vajra.experimental.federated.server --model sqli --port 8081
 """
 
 import os
@@ -86,9 +86,7 @@ MODELS_DIR = Path("fl_models")
 MODELS_DIR.mkdir(exist_ok=True)
 
 
-# ============================================================================
 # Federated Learning Strategy
-# ============================================================================
 
 def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
     """
@@ -153,9 +151,7 @@ def create_strategy(model_type: str, config: Dict) -> FedAvg:
     return strategy
 
 
-# ============================================================================
 # Model Persistence
-# ============================================================================
 
 def save_global_model(model_type: str, parameters, round_num: int):
     """
@@ -181,15 +177,13 @@ def save_global_model(model_type: str, parameters, round_num: int):
         with open(model_file, 'wb') as f:
             pickle.dump(model_data, f)
         
-        logger.info(f"✓ Saved global model for {model_type} (round {round_num})")
+        logger.info(f"[OK] Saved global model for {model_type} (round {round_num})")
         
     except Exception as e:
         logger.error(f"Failed to save global model for {model_type}: {e}")
 
 
-# ============================================================================
 # FL Server
-# ============================================================================
 
 class FLServerManager:
     """Manages Federated Learning servers for different model types"""
@@ -241,7 +235,7 @@ class FLServerManager:
             'config': config
         }
         
-        logger.info(f"✓ FL server started for {model_type} on port {port}")
+        logger.info(f"[OK] FL server started for {model_type} on port {port}")
     
     def start_all_servers(self, num_rounds: int = 10):
         """Start FL servers for all model types"""
@@ -273,9 +267,7 @@ class FLServerManager:
         return status
 
 
-# ============================================================================
 # Main Entry Point
-# ============================================================================
 
 def main():
     """Main entry point"""

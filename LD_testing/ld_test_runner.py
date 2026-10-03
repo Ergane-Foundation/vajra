@@ -115,13 +115,13 @@ class NGFWPipelineManager:
         
         try:
             # Start eve_watcher
-            eve_script = PARENT_DIR / "eve_watcher.py"
             eve_log = LOGS_DIR / "eve_watcher.log"
             
             with open(eve_log, 'w') as f:
                 self.eve_watcher_proc = subprocess.Popen(
-                    [self.python_cmd, str(eve_script)],
+                    [self.python_cmd, "-m", "vajra.pipeline.eve_watcher"],
                     cwd=str(PARENT_DIR),
+                    env={**os.environ, "PYTHONPATH": str(PARENT_DIR / "src")},
                     stdout=f,
                     stderr=subprocess.STDOUT,
                     start_new_session=True
