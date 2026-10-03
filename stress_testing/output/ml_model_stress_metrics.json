@@ -1,7 +1,0 @@
-{
-  "throughput": 500,
-  "avg_latency_ms": 5.0,
-  "p99_latency_ms": 15.0,
-  "error_rate": 0.0,
-  "threshold_met": true
-}

@@ -1,8 +1,0 @@
-{
-  "timestamp": "2025-12-09T12:43:13.321004",
-  "test_type": "edge_cases_stress",
-  "summary": {
-    "throughput": 2582,
-    "threshold_met": true
-  }
-}

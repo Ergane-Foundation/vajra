@@ -1,8 +1,0 @@
-{
-  "timestamp": "2025-12-09T12:43:00.544058",
-  "test_type": "fl_client_stress",
-  "summary": {
-    "throughput": 2780,
-    "threshold_met": true
-  }
-}
