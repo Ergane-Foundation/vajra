@@ -9,7 +9,7 @@ echo "====================================="
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
-    echo "⚠️  This script requires root privileges"
+    echo "[WARN]  This script requires root privileges"
     echo "Please run with: sudo $0"
     exit 1
 fi
@@ -89,7 +89,7 @@ fi
 
 echo ""
 echo "========================================="
-echo "✅ Suricata with DPDK built successfully!"
+echo "[OK] Suricata with DPDK built successfully!"
 echo "========================================="
 echo ""
 echo "Verify DPDK support:"

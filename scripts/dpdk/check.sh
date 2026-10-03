@@ -2,6 +2,9 @@
 # DPDK Pre-flight Check
 # Verifies DPDK is ready before running benchmarks
 
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$ROOT_DIR"
+
 set -e
 
 RED='\033[0;31m'
@@ -36,7 +39,7 @@ if command -v dpdk-devbind.py &> /dev/null || [ -d /opt/dpdk-* ]; then
     fi
 else
     echo -e "${YELLOW}NOT FOUND${NC}"
-    echo "  ⚠️  DPDK not installed. Run: sudo ./setup_dpdk.sh"
+    echo "  ⚠️  DPDK not installed. Run: sudo ./scripts/dpdk/setup.sh"
     ERRORS=$((ERRORS + 1))
 fi
 
@@ -45,9 +48,9 @@ echo -n "Checking dpdk_packet_processor... "
 if [ -f /usr/local/bin/dpdk_packet_processor ]; then
     echo -e "${GREEN}OK${NC}"
     echo "  ℹ️  Located at: /usr/local/bin/dpdk_packet_processor"
-elif [ -f dpdk/build/dpdk_packet_processor ]; then
+elif [ -f native/dpdk/build/dpdk_packet_processor ]; then
     echo -e "${YELLOW}BUILT but NOT INSTALLED${NC}"
-    echo "  ⚠️  Run: cd dpdk/build && sudo ninja install"
+    echo "  ⚠️  Run: cd native/dpdk/build && sudo ninja install"
     ERRORS=$((ERRORS + 1))
 else
     echo -e "${RED}NOT FOUND${NC}"
@@ -155,7 +158,7 @@ if [ $ERRORS -gt 0 ]; then
     echo "Please fix the issues above before running DPDK mode."
     echo ""
     echo "Quick setup:"
-    echo "  1. sudo ./setup_dpdk.sh          # Install DPDK"
+    echo "  1. sudo ./scripts/dpdk/setup.sh          # Install DPDK"
     echo "  2. cd dpdk && ./build.sh         # Build packet processor"
     echo "  3. sudo dpdk-devbind.py -b vfio-pci <PCI_ADDR>  # Bind NIC"
     echo ""
@@ -189,6 +192,6 @@ fi
 echo -e "${GREEN}✅ DPDK environment is ready!${NC}"
 echo ""
 echo "You can now run:"
-echo "  1. sudo ./start_dpdk.sh           # Start DPDK packet processor"
+echo "  1. sudo ./scripts/dpdk/start.sh           # Start DPDK packet processor"
 echo "  2. ./run_benchmark.sh dpdk        # Run benchmark in DPDK mode"
 echo ""

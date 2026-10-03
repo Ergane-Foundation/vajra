@@ -143,7 +143,7 @@ class NGFWPipelineManager:
         log("Starting main NGFW pipeline (start_macos.sh)...")
         
         try:
-            start_script = PARENT_DIR / "start_macos.sh"
+            start_script = PARENT_DIR / "scripts" / "start_macos.sh"
             log_file = LOGS_DIR / "start_macos.log"
             
             # Make sure script is executable
@@ -200,7 +200,7 @@ class NGFWPipelineManager:
         
         # Stop start_macos.sh processes
         try:
-            stop_script = PARENT_DIR / "stop_macos.sh"
+            stop_script = PARENT_DIR / "scripts" / "stop_macos.sh"
             if stop_script.exists():
                 subprocess.run(["sudo", str(stop_script)], timeout=30)
         except:

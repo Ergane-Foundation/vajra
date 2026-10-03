@@ -4,7 +4,7 @@
 # =============================================================================
 # 
 # This script starts the ENTIRE NGFW pipeline in a single command:
-#   1. System Setup (install.sh, setup_linux.sh)
+#   1. System Setup (install.sh, setup_venv.sh)
 #   2. Python Virtual Environment Setup
 #   3. Suricata IDS/IPS (NFQUEUE mode)
 #   4. HTTP Server (for testing)
@@ -14,17 +14,17 @@
 #   8. Kafka Bridge (optional)
 #
 # Usage:
-#   sudo ./start.sh              # Start everything
-#   sudo ./start.sh --no-http    # Skip HTTP server
-#   sudo ./start.sh --help       # Show help
+#   sudo ./scripts/start.sh              # Start everything
+#   sudo ./scripts/start.sh --no-http    # Skip HTTP server
+#   sudo ./scripts/start.sh --help       # Show help
 #
 # =============================================================================
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
-export PYTHONPATH="$SCRIPT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
+export PYTHONPATH="$ROOT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
 
 # =============================================================================
 # Initial Setup Phase
@@ -44,23 +44,23 @@ if [ "$FIRST_RUN" = true ]; then
     # Step 1: Run install.sh
     echo ""
     echo "[Setup 1/4] Running install.sh..."
-    if [ -f "install.sh" ]; then
-        chmod +x install.sh
-        ./install.sh
+    if [ -f "scripts/install.sh" ]; then
+        chmod +x scripts/install.sh
+        ./scripts/install.sh
         echo "✓ install.sh completed"
     else
         echo "⚠ install.sh not found, skipping..."
     fi
     
-    # Step 2: Run setup_linux.sh
+    # Step 2: Run setup_venv.sh
     echo ""
-    echo "[Setup 2/4] Running setup_linux.sh..."
-    if [ -f "setup_linux.sh" ]; then
-        chmod +x setup_linux.sh
-        ./setup_linux.sh
-        echo "✓ setup_linux.sh completed"
+    echo "[Setup 2/4] Running setup_venv.sh..."
+    if [ -f "scripts/setup_venv.sh" ]; then
+        chmod +x scripts/setup_venv.sh
+        ./scripts/setup_venv.sh
+        echo "✓ setup_venv.sh completed"
     else
-        echo "⚠ setup_linux.sh not found, skipping..."
+        echo "⚠ setup_venv.sh not found, skipping..."
     fi
     
     # Step 3: Create Python virtual environment
@@ -121,7 +121,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --help|-h)
-            echo "Usage: sudo ./start.sh [OPTIONS]"
+            echo "Usage: sudo ./scripts/start.sh [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --no-http    Skip starting HTTP server"
@@ -141,7 +141,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Unknown option: $1"
-            echo "Run: ./start.sh --help"
+            echo "Run: ./scripts/start.sh --help"
             exit 1
             ;;
     esac
@@ -170,7 +170,7 @@ echo -e "${NC}"
 # =============================================================================
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}ERROR: Must run as root for IPS mode${NC}"
-    echo "Run: sudo ./start.sh"
+    echo "Run: sudo ./scripts/start.sh"
     exit 1
 fi
 
@@ -182,11 +182,11 @@ if [ -n "$VIRTUAL_ENV" ]; then
     PYTHON_CMD="$VIRTUAL_ENV/bin/python3"
     echo -e "${GREEN}Using virtual environment: $VIRTUAL_ENV${NC}"
 elif [ -f "venv/bin/python3" ]; then
-    PYTHON_CMD="$SCRIPT_DIR/venv/bin/python3"
-    echo -e "${GREEN}Using venv: $SCRIPT_DIR/venv${NC}"
+    PYTHON_CMD="$ROOT_DIR/venv/bin/python3"
+    echo -e "${GREEN}Using venv: $ROOT_DIR/venv${NC}"
 elif [ -f "venv_test/bin/python3" ]; then
-    PYTHON_CMD="$SCRIPT_DIR/venv_test/bin/python3"
-    echo -e "${GREEN}Using venv_test: $SCRIPT_DIR/venv_test${NC}"
+    PYTHON_CMD="$ROOT_DIR/venv_test/bin/python3"
+    echo -e "${GREEN}Using venv_test: $ROOT_DIR/venv_test${NC}"
 else
     PYTHON_CMD="python3"
     echo -e "${YELLOW}Using system Python${NC}"
@@ -195,10 +195,10 @@ fi
 # =============================================================================
 # Create Directories (use absolute paths)
 # =============================================================================
-LOGS_DIR="$SCRIPT_DIR/logs"
-RULES_DIR="$SCRIPT_DIR/rules"
-ML_MODELS_DIR="$SCRIPT_DIR/${ML_MODELS_DIR:-models}"
-FL_MODELS_DIR="$SCRIPT_DIR/fl_models"
+LOGS_DIR="$ROOT_DIR/logs"
+RULES_DIR="$ROOT_DIR/rules"
+ML_MODELS_DIR="$ROOT_DIR/${ML_MODELS_DIR:-models}"
+FL_MODELS_DIR="$ROOT_DIR/fl_models"
 
 mkdir -p "$LOGS_DIR" "$LOGS_DIR/reports" "$ML_MODELS_DIR" "$FL_MODELS_DIR" "$RULES_DIR"
 chmod 755 "$LOGS_DIR" "$ML_MODELS_DIR" "$FL_MODELS_DIR" "$RULES_DIR"
@@ -341,7 +341,7 @@ echo -e "${GREEN}  ✓ NFQUEUE rules configured${NC}"
 echo ""
 echo -e "${YELLOW}[1.5/8] Generating suricata.yaml with detected interface...${NC}"
 
-cat > "$SCRIPT_DIR/config/suricata/suricata.runtime.yaml" << EOF
+cat > "$ROOT_DIR/config/suricata/suricata.runtime.yaml" << EOF
 %YAML 1.1
 ---
 # Suricata IPS Mode Configuration - AUTO-GENERATED (Linux)
@@ -433,12 +433,12 @@ pcap:
   - interface: $INTERFACE
 
 # Rules
-default-rule-path: $SCRIPT_DIR
+default-rule-path: $ROOT_DIR
 rule-files:
   - $RULES_DIR/local.rules
 
-classification-file: $SCRIPT_DIR/config/suricata/classification.config
-reference-config-file: $SCRIPT_DIR/config/suricata/reference.config
+classification-file: $ROOT_DIR/config/suricata/classification.config
+reference-config-file: $ROOT_DIR/config/suricata/reference.config
 app-layer:
   protocols:
     http:
@@ -533,7 +533,7 @@ echo "[]" > "$LOGS_DIR/eve.json" 2>/dev/null || true
 
 # Start Suricata in NFQUEUE (IPS) mode with runtime config (absolute paths)
 echo -e "${BLUE}  Starting: suricata -c config/suricata/suricata.runtime.yaml -q 0${NC}"
-suricata -c "$SCRIPT_DIR/config/suricata/suricata.runtime.yaml" -q 0 -l "$LOGS_DIR" -vv -D --pidfile "$LOGS_DIR/suricata.pid" 2>&1 | tee "$LOGS_DIR/suricata_startup.log"
+suricata -c "$ROOT_DIR/config/suricata/suricata.runtime.yaml" -q 0 -l "$LOGS_DIR" -vv -D --pidfile "$LOGS_DIR/suricata.pid" 2>&1 | tee "$LOGS_DIR/suricata_startup.log"
 
 sleep 4
 
@@ -773,9 +773,9 @@ echo -e "  ${CYAN}python3 attack_test.py --target $IFACE_IP --full${NC}"
 
 echo ""
 echo -e "${BOLD}Monitor:${NC}"
-echo -e "  ${CYAN}python3 status.py${NC}"
+echo -e "  ${CYAN}python3 scripts/status.py${NC}"
 echo -e "  ${CYAN}tail -f logs/unified_events.json${NC}"
 
 echo ""
-echo -e "${BOLD}${RED}WARNING: To restore normal networking, run: sudo ./stop.sh${NC}"
+echo -e "${BOLD}${RED}WARNING: To restore normal networking, run: sudo ./scripts/stop.sh${NC}"
 echo ""

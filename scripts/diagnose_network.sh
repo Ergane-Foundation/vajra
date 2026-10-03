@@ -1,10 +1,8 @@
 #!/bin/bash
-# =============================================================================
 # VAJRA Network Flow Diagnostics
-# =============================================================================
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
 
 # Colors
 RED='\033[0;31m'
@@ -32,25 +30,21 @@ fi
 echo -e "${BLUE}Operating System:${NC} $OS_TYPE"
 echo ""
 
-# =============================================================================
 # 1. Check Suricata Process
-# =============================================================================
-echo -e "${YELLOW}1️⃣  Suricata Process Status:${NC}"
+echo -e "${YELLOW}1. Suricata Process Status:${NC}"
 if pgrep -f suricata > /dev/null; then
     SURI_PID=$(pgrep -f suricata | head -1)
     SURI_CMD=$(ps -p $SURI_PID -o command= 2>/dev/null)
-    echo -e "  ${GREEN}✓${NC} Suricata is running"
+    echo -e "  ${GREEN}[OK]${NC} Suricata is running"
     echo -e "    PID: ${CYAN}$SURI_PID${NC}"
     echo -e "    Command: ${CYAN}$SURI_CMD${NC}"
 else
-    echo -e "  ${RED}✗${NC} Suricata is NOT running"
+    echo -e "  ${RED}[FAIL]${NC} Suricata is NOT running"
 fi
 echo ""
 
-# =============================================================================
 # 2. Network Interfaces
-# =============================================================================
-echo -e "${YELLOW}2️⃣  Network Interfaces:${NC}"
+echo -e "${YELLOW}2. Network Interfaces:${NC}"
 if [ "$OS_TYPE" = "macos" ]; then
     # macOS
     for iface in $(ifconfig -l); do
@@ -58,7 +52,7 @@ if [ "$OS_TYPE" = "macos" ]; then
             status=$(ifconfig "$iface" 2>/dev/null | grep "status:" | awk '{print $2}')
             inet=$(ifconfig "$iface" 2>/dev/null | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -1)
             if [ "$status" = "active" ] || [ -n "$inet" ]; then
-                echo -e "  ${GREEN}✓${NC} $iface - Status: ${GREEN}$status${NC}, IP: ${CYAN}${inet:-none}${NC}"
+                echo -e "  ${GREEN}[OK]${NC} $iface - Status: ${GREEN}$status${NC}, IP: ${CYAN}${inet:-none}${NC}"
             fi
         fi
     done
@@ -66,7 +60,7 @@ if [ "$OS_TYPE" = "macos" ]; then
     # Default route interface
     DEFAULT_IFACE=$(route -n get default 2>/dev/null | grep 'interface:' | awk '{print $2}')
     if [ -n "$DEFAULT_IFACE" ]; then
-        echo -e "  ${BLUE}ℹ${NC}  Default route interface: ${CYAN}$DEFAULT_IFACE${NC}"
+        echo -e "  ${BLUE}[INFO]${NC}  Default route interface: ${CYAN}$DEFAULT_IFACE${NC}"
     fi
 else
     # Linux
@@ -75,7 +69,7 @@ else
             state=$(cat /sys/class/net/$iface/operstate 2>/dev/null)
             inet=$(ip -4 addr show $iface 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1)
             if [ "$state" = "up" ]; then
-                echo -e "  ${GREEN}✓${NC} $iface - State: ${GREEN}$state${NC}, IP: ${CYAN}${inet:-none}${NC}"
+                echo -e "  ${GREEN}[OK]${NC} $iface - State: ${GREEN}$state${NC}, IP: ${CYAN}${inet:-none}${NC}"
             fi
         fi
     done
@@ -83,15 +77,13 @@ else
     # Default route interface
     DEFAULT_IFACE=$(ip route show default 2>/dev/null | grep -oP 'dev\s+\K\S+' | head -1)
     if [ -n "$DEFAULT_IFACE" ]; then
-        echo -e "  ${BLUE}ℹ${NC}  Default route interface: ${CYAN}$DEFAULT_IFACE${NC}"
+        echo -e "  ${BLUE}[INFO]${NC}  Default route interface: ${CYAN}$DEFAULT_IFACE${NC}"
     fi
 fi
 echo ""
 
-# =============================================================================
 # 3. Check eve.json
-# =============================================================================
-echo -e "${YELLOW}3️⃣  Suricata eve.json Status:${NC}"
+echo -e "${YELLOW}3. Suricata eve.json Status:${NC}"
 EVE_FILE="logs/eve.json"
 
 if [ -f "$EVE_FILE" ]; then
@@ -99,7 +91,7 @@ if [ -f "$EVE_FILE" ]; then
     FILE_SIZE=$(ls -lh "$EVE_FILE" 2>/dev/null | awk '{print $5}')
     FILE_AGE=$(stat -f "%Sm" "$EVE_FILE" 2>/dev/null || stat -c "%y" "$EVE_FILE" 2>/dev/null)
     
-    echo -e "  ${GREEN}✓${NC} eve.json exists"
+    echo -e "  ${GREEN}[OK]${NC} eve.json exists"
     echo -e "    Lines: ${CYAN}$LINE_COUNT${NC}"
     echo -e "    Size: ${CYAN}$FILE_SIZE${NC}"
     echo -e "    Last modified: ${CYAN}$FILE_AGE${NC}"
@@ -113,63 +105,57 @@ if [ -f "$EVE_FILE" ]; then
             echo -e "    • Type: ${CYAN}$event_type${NC}, Time: ${YELLOW}$timestamp${NC}"
         done
     else
-        echo -e "  ${RED}⚠${NC}  File is empty - no events captured yet"
+        echo -e "  ${RED}[WARN]${NC}  File is empty - no events captured yet"
     fi
 else
-    echo -e "  ${RED}✗${NC} eve.json not found"
-    echo -e "    Expected location: ${CYAN}$SCRIPT_DIR/$EVE_FILE${NC}"
+    echo -e "  ${RED}[FAIL]${NC} eve.json not found"
+    echo -e "    Expected location: ${CYAN}$ROOT_DIR/$EVE_FILE${NC}"
 fi
 echo ""
 
-# =============================================================================
 # 4. Check WebSocket Server
-# =============================================================================
-echo -e "${YELLOW}4️⃣  WebSocket Server (Unified Logger):${NC}"
+echo -e "${YELLOW}4. WebSocket Server (Unified Logger):${NC}"
 if pgrep -f "vajra.pipeline.unified_logger" > /dev/null; then
     LOGGER_PID=$(pgrep -f "vajra.pipeline.unified_logger" | head -1)
-    echo -e "  ${GREEN}✓${NC} Unified Logger is running (PID: $LOGGER_PID)"
+    echo -e "  ${GREEN}[OK]${NC} Unified Logger is running (PID: $LOGGER_PID)"
     
     # Check if port 8765 is listening
     if [ "$OS_TYPE" = "macos" ]; then
         if lsof -i :8765 2>/dev/null | grep -q LISTEN; then
-            echo -e "  ${GREEN}✓${NC} WebSocket listening on port 8765"
+            echo -e "  ${GREEN}[OK]${NC} WebSocket listening on port 8765"
         else
-            echo -e "  ${RED}⚠${NC}  Port 8765 not listening"
+            echo -e "  ${RED}[WARN]${NC}  Port 8765 not listening"
         fi
     else
         if netstat -tuln 2>/dev/null | grep -q ":8765 " || ss -tuln 2>/dev/null | grep -q ":8765 "; then
-            echo -e "  ${GREEN}✓${NC} WebSocket listening on port 8765"
+            echo -e "  ${GREEN}[OK]${NC} WebSocket listening on port 8765"
         else
-            echo -e "  ${RED}⚠${NC}  Port 8765 not listening"
+            echo -e "  ${RED}[WARN]${NC}  Port 8765 not listening"
         fi
     fi
 else
-    echo -e "  ${RED}✗${NC} Unified Logger is NOT running"
+    echo -e "  ${RED}[FAIL]${NC} Unified Logger is NOT running"
 fi
 echo ""
 
-# =============================================================================
 # 5. Check Suricata Rules
-# =============================================================================
-echo -e "${YELLOW}5️⃣  Suricata Rules:${NC}"
+echo -e "${YELLOW}5. Suricata Rules:${NC}"
 RULES_FILE="rules/local.rules"
 
 if [ -f "$RULES_FILE" ]; then
     RULE_COUNT=$(grep -c '^alert' "$RULES_FILE" 2>/dev/null || echo "0")
-    echo -e "  ${GREEN}✓${NC} Rules file exists: $RULES_FILE"
+    echo -e "  ${GREEN}[OK]${NC} Rules file exists: $RULES_FILE"
     echo -e "    Alert rules: ${CYAN}$RULE_COUNT${NC}"
 else
-    echo -e "  ${RED}✗${NC} Rules file not found: $RULES_FILE"
+    echo -e "  ${RED}[FAIL]${NC} Rules file not found: $RULES_FILE"
 fi
 echo ""
 
-# =============================================================================
 # 6. Test Packet Capture Permission
-# =============================================================================
-echo -e "${YELLOW}6️⃣  Packet Capture Test:${NC}"
+echo -e "${YELLOW}6. Packet Capture Test:${NC}"
 
 if [ "$EUID" -ne 0 ]; then
-    echo -e "  ${YELLOW}⚠${NC}  Not running as root - cannot test packet capture"
+    echo -e "  ${YELLOW}[WARN]${NC}  Not running as root - cannot test packet capture"
 else
     # Get interface
     if [ "$OS_TYPE" = "macos" ]; then
@@ -187,24 +173,22 @@ else
         PACKET_COUNT=$(echo "$TCPDUMP_OUT" | grep -o '[0-9]* packets captured' | awk '{print $1}')
         
         if [ -n "$PACKET_COUNT" ] && [ "$PACKET_COUNT" -gt 0 ]; then
-            echo -e "  ${GREEN}✓${NC} Packet capture working - captured $PACKET_COUNT packets"
+            echo -e "  ${GREEN}[OK]${NC} Packet capture working - captured $PACKET_COUNT packets"
         else
-            echo -e "  ${RED}⚠${NC}  No packets captured - possible permission or interface issue"
+            echo -e "  ${RED}[WARN]${NC}  No packets captured - possible permission or interface issue"
         fi
     else
-        echo -e "  ${YELLOW}⚠${NC}  tcpdump not available - skipping test"
+        echo -e "  ${YELLOW}[WARN]${NC}  tcpdump not available - skipping test"
     fi
 fi
 echo ""
 
-# =============================================================================
 # 7. Check Suricata Configuration
-# =============================================================================
-echo -e "${YELLOW}7️⃣  Suricata Configuration:${NC}"
+echo -e "${YELLOW}7. Suricata Configuration:${NC}"
 SURI_CONFIG="config/suricata/suricata.runtime.yaml"
 
 if [ -f "$SURI_CONFIG" ]; then
-    echo -e "  ${GREEN}✓${NC} Configuration file exists: $SURI_CONFIG"
+    echo -e "  ${GREEN}[OK]${NC} Configuration file exists: $SURI_CONFIG"
     
     # Extract interface from config
     CONFIG_IFACE=$(grep -E '^\s+interface:' "$SURI_CONFIG" | head -1 | awk '{print $2}' | tr -d '"')
@@ -229,14 +213,12 @@ if [ -f "$SURI_CONFIG" ]; then
         echo -e "    Mode: ${CYAN}PCAP (IDS)${NC}"
     fi
 else
-    echo -e "  ${RED}✗${NC} Configuration file not found: $SURI_CONFIG"
+    echo -e "  ${RED}[FAIL]${NC} Configuration file not found: $SURI_CONFIG"
 fi
 echo ""
 
-# =============================================================================
 # 8. Traffic Generation Test
-# =============================================================================
-echo -e "${YELLOW}8️⃣  Quick Traffic Test:${NC}"
+echo -e "${YELLOW}8. Quick Traffic Test:${NC}"
 echo -e "  Generating test traffic..."
 
 # Generate some traffic
@@ -252,18 +234,16 @@ if [ -f "$EVE_FILE" ]; then
     NEW_LINE_COUNT=$(wc -l < "$EVE_FILE" 2>/dev/null | tr -d ' ')
     if [ "$NEW_LINE_COUNT" -gt "$LINE_COUNT" ]; then
         DIFF=$((NEW_LINE_COUNT - LINE_COUNT))
-        echo -e "  ${GREEN}✓${NC} New events detected! (+$DIFF events)"
+        echo -e "  ${GREEN}[OK]${NC} New events detected! (+$DIFF events)"
     else
-        echo -e "  ${RED}⚠${NC}  No new events - Suricata may not be capturing traffic"
+        echo -e "  ${RED}[WARN]${NC}  No new events - Suricata may not be capturing traffic"
     fi
 else
-    echo -e "  ${RED}⚠${NC}  Cannot verify - eve.json not found"
+    echo -e "  ${RED}[WARN]${NC}  Cannot verify - eve.json not found"
 fi
 echo ""
 
-# =============================================================================
 # Summary & Recommendations
-# =============================================================================
 echo -e "${BOLD}${CYAN}"
 echo "╔═══════════════════════════════════════════════════════════════╗"
 echo "║                    Diagnostic Summary                         ║"
@@ -273,27 +253,27 @@ echo -e "${NC}"
 ISSUES=0
 
 if ! pgrep -f suricata > /dev/null; then
-    echo -e "${RED}✗${NC} Suricata is not running"
-    echo -e "  → Start with: ${CYAN}sudo ./start.sh${NC} (Linux) or ${CYAN}sudo ./start_macos.sh${NC} (macOS)"
+    echo -e "${RED}[FAIL]${NC} Suricata is not running"
+    echo -e "  → Start with: ${CYAN}sudo ./scripts/start.sh${NC} (Linux) or ${CYAN}sudo ./scripts/start_macos.sh${NC} (macOS)"
     ISSUES=$((ISSUES + 1))
 fi
 
 if [ ! -f "$EVE_FILE" ] || [ "$(wc -l < "$EVE_FILE" 2>/dev/null)" -eq 0 ]; then
-    echo -e "${RED}✗${NC} No events in eve.json"
+    echo -e "${RED}[FAIL]${NC} No events in eve.json"
     echo -e "  → Check Suricata config and restart"
     ISSUES=$((ISSUES + 1))
 fi
 
 if ! pgrep -f "vajra.pipeline.unified_logger" > /dev/null; then
-    echo -e "${RED}✗${NC} Unified Logger not running"
+    echo -e "${RED}[FAIL]${NC} Unified Logger not running"
     echo -e "  → WebSocket events will not be available"
     ISSUES=$((ISSUES + 1))
 fi
 
 if [ "$ISSUES" -eq 0 ]; then
-    echo -e "${GREEN}✓${NC} All checks passed! System appears to be working correctly."
+    echo -e "${GREEN}[OK]${NC} All checks passed! System appears to be working correctly."
 else
-    echo -e "${YELLOW}⚠${NC}  Found $ISSUES issue(s) - see recommendations above"
+    echo -e "${YELLOW}[WARN]${NC}  Found $ISSUES issue(s) - see recommendations above"
 fi
 
 echo ""

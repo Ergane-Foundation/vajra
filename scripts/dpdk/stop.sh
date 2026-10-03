@@ -1,7 +1,7 @@
 #!/bin/bash
 # Stop DPDK-based NGFW Pipeline
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PID_DIR="/var/run/ngfw"
 
 # Colors
@@ -16,7 +16,7 @@ echo "========================================="
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}⚠️  This script requires root privileges${NC}"
+    echo -e "${RED}[WARN]  This script requires root privileges${NC}"
     echo "Please run with: sudo $0"
     exit 1
 fi
@@ -35,7 +35,7 @@ stop_process() {
             # Wait for graceful shutdown
             for i in {1..10}; do
                 if ! kill -0 $PID 2>/dev/null; then
-                    echo -e "${GREEN}✅ $NAME stopped${NC}"
+                    echo -e "${GREEN}[OK] $NAME stopped${NC}"
                     rm -f "$PID_FILE"
                     return 0
                 fi
@@ -44,7 +44,7 @@ stop_process() {
             
             # Force kill if still running
             if kill -0 $PID 2>/dev/null; then
-                echo -e "${YELLOW}⚠️  Force killing $NAME${NC}"
+                echo -e "${YELLOW}[WARN]  Force killing $NAME${NC}"
                 kill -KILL $PID || true
                 rm -f "$PID_FILE"
             fi
@@ -80,9 +80,9 @@ pkill -f "suricata.*dpdk" || true
 
 echo ""
 echo "========================================="
-echo -e "${GREEN}✅ DPDK Pipeline Stopped${NC}"
+echo -e "${GREEN}[OK] DPDK Pipeline Stopped${NC}"
 echo "========================================="
 echo ""
 echo "To restart:"
-echo "  sudo ./start_dpdk.sh"
+echo "  sudo ./scripts/dpdk/start.sh"
 echo ""

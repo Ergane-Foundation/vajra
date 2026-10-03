@@ -259,7 +259,7 @@ For issues:
 2. Review logs in `RC_testing/logs/`
 3. Verify components work individually:
    - `python3 -m vajra.pipeline.eve_watcher`
-   - `sudo ./start_macos.sh`
+   - `sudo ./scripts/start_macos.sh`
 4. Check system resources: `top`, `htop`
 
 ---

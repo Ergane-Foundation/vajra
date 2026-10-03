@@ -130,7 +130,7 @@ class NGFWPipelineManager:
             time.sleep(3)
             
             # Start main pipeline
-            start_script = PARENT_DIR / "start_macos.sh"
+            start_script = PARENT_DIR / "scripts" / "start_macos.sh"
             pipeline_log = LOGS_DIR / "pipeline.log"
             
             os.chmod(start_script, 0o755)
@@ -159,7 +159,7 @@ class NGFWPipelineManager:
         log("Stopping pipeline...")
         
         try:
-            stop_script = PARENT_DIR / "stop_macos.sh"
+            stop_script = PARENT_DIR / "scripts" / "stop_macos.sh"
             if stop_script.exists():
                 subprocess.run(["sudo", str(stop_script)], timeout=30)
         except:
