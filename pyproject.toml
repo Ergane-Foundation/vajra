@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vajra"
+description = "Suricata-based intrusion prevention with automated response and experimental ML detection."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Vajra contributors" }]
+keywords = ["suricata", "ips", "ids", "soar", "network-security"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Security",
+    "Topic :: System :: Networking :: Firewalls",
+]
+dynamic = ["version", "dependencies"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+vajra-soar = "vajra.soar.engine:main"
+vajra-logger = "vajra.pipeline.unified_logger:main"
+vajra-kafka-bridge = "vajra.pipeline.kafka_bridge:main"
+vajra-inference-api = "vajra.api.inference:main"
+vajra-inspector = "vajra.inspection.packet_inspector:main"
+vajra-models = "vajra.ml.manager:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "vajra.__version__" }
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
