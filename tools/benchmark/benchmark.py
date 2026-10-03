@@ -113,11 +113,11 @@ class FirewallBenchmark:
                     print(f"   Progress: {i+1}/{iterations} packets")
             
             if not latencies:
-                print("❌ No packet processing detected!")
+                print("[FAIL] No packet processing detected!")
                 print("   Ensure the packet inspector is running with: sudo python3 -m vajra.inspection.packet_inspector -i en0")
                 return
 
-            print(f"\n📊 Latency Results (Detection Time):")
+            print(f"\nLatency Results (Detection Time):")
             print(f"   Samples: {len(latencies)}/{iterations} detected")
             print(f"   Min: {min(latencies):.2f} ms")
             print(f"   Max: {max(latencies):.2f} ms")
@@ -127,7 +127,7 @@ class FirewallBenchmark:
                 print(f"   Jitter (Stdev): {statistics.stdev(latencies):.2f} ms")
 
         except KeyboardInterrupt:
-            print("\n⚠️  Test interrupted")
+            print("\n[WARN]  Test interrupted")
 
     def measure_throughput(self, duration=10, packet_size=1024):
         """Floods packets to test inspection capacity"""
@@ -155,12 +155,12 @@ class FirewallBenchmark:
         pps = packets_sent / total_time
         mbps = (bytes_sent * 8) / (1024 * 1024) / total_time
         
-        print(f"\n🚀 Traffic Generation Results:")
+        print(f"\nTraffic Generation Results:")
         print(f"   Duration: {total_time:.2f} s")
         print(f"   Packets Sent: {packets_sent}")
         print(f"   Rate: {pps:.2f} pps")
         print(f"   Bandwidth: {mbps:.2f} Mbps")
-        print("\n👉 Check the Packet Inspector's 'Packets Processed' stat to calculate drop rate.")
+        print("\nCheck the Packet Inspector's 'Packets Processed' stat to calculate drop rate.")
 
 if __name__ == "__main__":
     print("=== Firewall Benchmarker ===")

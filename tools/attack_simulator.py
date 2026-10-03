@@ -19,7 +19,7 @@ from typing import List, Tuple, Dict, Any
 from dataclasses import asdict
 
 # Make the vajra package importable without installation
-SRC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
+SRC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
 if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
@@ -71,11 +71,10 @@ class AttackTester:
     
     def log(self, attack: str, status: str, details: str = ""):
         """Log attack result"""
-        emoji = "✅" if status == "SENT" else "❌" if status == "ERROR" else "⏭️"
-        print(f"  {emoji} {attack}: {status} {details}")
+        print(f"  {attack}: {status} {details}")
         self.results.append((attack, status, details))
     
-    # ========== SQL Injection ==========
+    # SQL Injection
     def test_sqli(self):
         """Test SQL injection detection"""
         print("\n[SQL Injection Tests]")
@@ -108,7 +107,7 @@ class AttackTester:
             
             time.sleep(0.3)
     
-    # ========== XSS ==========
+    # XSS
     def test_xss(self):
         """Test XSS detection"""
         print("\n[XSS Tests]")
@@ -140,7 +139,7 @@ class AttackTester:
             
             time.sleep(0.3)
     
-    # ========== Path Traversal ==========
+    # Path Traversal
     def test_path_traversal(self):
         """Test path traversal detection"""
         print("\n[Path Traversal Tests]")
@@ -172,7 +171,7 @@ class AttackTester:
             
             time.sleep(0.3)
     
-    # ========== Command Injection ==========
+    # Command Injection
     def test_command_injection(self):
         """Test command injection detection"""
         print("\n[Command Injection Tests]")
@@ -204,7 +203,7 @@ class AttackTester:
             
             time.sleep(0.3)
     
-    # ========== Port Scan ==========
+    # Port Scan
     def test_port_scan(self, ports: int = 20):
         """Test port scan detection"""
         print(f"\n[Port Scan Test - {ports} ports]")
@@ -228,7 +227,7 @@ class AttackTester:
         
         self.log(f"Port Scan ({ports} ports)", "SENT", f"{open_ports} open")
     
-    # ========== HTTP Flood ==========
+    # HTTP Flood
     def test_http_flood(self, count: int = 30):
         """Test HTTP flood detection"""
         print(f"\n[HTTP Flood Test - {count} requests]")
@@ -255,7 +254,7 @@ class AttackTester:
         
         self.log(f"SSH Bruteforce ({attempts})", "SENT", f"{success} conn, {blocked} blocked")
     
-    # ========== ML-Based Insider Threat Testing ==========
+    # ML-Based Insider Threat Testing
     def test_ml_insider_threats(self):
         """Test real trained ML model with insider threat scenarios"""
         print("\n[ML Insider Threat Detection - Real Model Testing]")
@@ -427,11 +426,11 @@ class AttackTester:
             # Log result
             if is_threat:
                 threats_detected += 1
-                status = "🚨 THREAT"
+                status = "[ALERT] THREAT"
                 details = f"Detected: {', '.join(threats)}"
                 self.log(f"ML: {name}", status, details)
             else:
-                status = "✓ Normal"
+                status = "[OK] Normal"
                 details = "No threat detected"
                 self.log(f"ML: {name}", status, details)
             
@@ -467,7 +466,7 @@ class AttackTester:
         except Exception as e:
             print(f"  Warning: Error saving results: {e}")
     
-    # ========== SSH Bruteforce (simulated) ==========
+    # SSH Bruteforce (simulated)
     def test_ssh_bruteforce(self, attempts: int = 10):
         """Test SSH bruteforce detection"""
         print(f"\n[SSH Bruteforce Test - {attempts} attempts]")
@@ -497,7 +496,7 @@ class AttackTester:
         
         self.log(f"SSH Bruteforce ({attempts})", "SENT", f"{success} conn, {blocked} blocked")
     
-    # ========== UBA (User Behavior Analytics) Testing ==========
+    # UBA (User Behavior Analytics) Testing
     def test_uba_insider_threats(self):
         """Test UBA engine with insider threat scenarios"""
         print("\n[UBA Insider Threat Detection Tests]")
@@ -513,7 +512,7 @@ class AttackTester:
             self.log("UBA Testing", "ERROR", f"Failed to initialize: {str(e)[:50]}")
             return
         
-        print(f"  UBA Engine Status: ✅ Initialized")
+        print(f"  UBA Engine Status: [OK] Initialized")
         print(f"  Users monitored: {uba.users_monitored}")
         
         # UBA test scenarios (user behavior patterns)
@@ -607,23 +606,23 @@ class AttackTester:
                 
                 if severity == "CRITICAL":
                     high_risk_count += 1
-                    status = "🚨 CRITICAL"
+                    status = "[ALERT] CRITICAL"
                 elif severity == "HIGH":
                     high_risk_count += 1
-                    status = "⚠️ HIGH"
+                    status = "[WARN] HIGH"
                 else:
-                    status = "⚡ MEDIUM"
+                    status = "MEDIUM"
                 
                 threat = scenario_alerts[0].threat_indicator
                 self.log(f"  {scenario_name}", status, threat)
             else:
                 if max_risk >= 0.7:
-                    status = "⚠️ HIGH RISK"
+                    status = "[WARN] HIGH RISK"
                     high_risk_count += 1
                 elif max_risk >= 0.4:
-                    status = "⚡ MEDIUM RISK"
+                    status = "MEDIUM RISK"
                 else:
-                    status = "✓ LOW RISK"
+                    status = "[OK] LOW RISK"
                 
                 self.log(f"  {scenario_name}", status, f"Risk: {max_risk:.2f}")
             
@@ -659,7 +658,7 @@ class AttackTester:
         except Exception as e:
             print(f"  Warning: Error saving results: {e}\n")
     
-    # ========== ETA (Encrypted Traffic Analysis) Testing ==========
+    # ETA (Encrypted Traffic Analysis) Testing
     def test_eta_encrypted_threats(self):
         """Test ETA engine with encrypted traffic threat scenarios"""
         print("\n[ETA Encrypted Traffic Analysis Tests]")
@@ -675,7 +674,7 @@ class AttackTester:
             self.log("ETA Testing", "ERROR", f"Failed to initialize: {str(e)[:50]}")
             return
         
-        print(f"  ETA Engine Status: ✅ Initialized")
+        print(f"  ETA Engine Status: [OK] Initialized")
         
         # ETA test scenarios (encrypted traffic patterns)
         test_scenarios = [
@@ -746,11 +745,11 @@ class AttackTester:
             if analysis:
                 if analysis.is_threat:
                     threats_detected += 1
-                    status = f"🔴 {analysis.prediction.upper()}"
+                    status = f"{analysis.prediction.upper()}"
                     details = f"Confidence: {analysis.confidence:.2%}"
                 else:
                     benign_detected += 1
-                    status = "🟢 BENIGN"
+                    status = "BENIGN"
                     details = f"Confidence: {analysis.confidence:.2%}"
                 
                 self.log(f"  {scenario_name}", status, details)
@@ -895,16 +894,16 @@ def main():
         epilog="""
 Examples:
   # Auto-detect target and run full test
-  python3 attack_test.py --full
+  python3 tools/attack_simulator.py --full
   
   # Specify target manually
-  python3 attack_test.py --target 192.168.1.100 --full
+  python3 tools/attack_simulator.py --target 192.168.1.100 --full
   
   # Run only SQL injection tests
-  python3 attack_test.py --sqli
+  python3 tools/attack_simulator.py --sqli
   
   # Run ML insider threat detection
-  python3 attack_test.py --ml
+  python3 tools/attack_simulator.py --ml
 
 Note: If --target is not specified, the local IP will be auto-detected.
         """

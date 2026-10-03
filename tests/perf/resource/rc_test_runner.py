@@ -22,9 +22,9 @@ Usage:
     sudo python3 rc_test_runner.py
 
 Output:
-    - RC_testing/output/rc_report_TIMESTAMP.json
-    - RC_testing/output/rc_dashboard_TIMESTAMP.png
-    - RC_testing/output/resource_timeline_TIMESTAMP.png
+    - tests/perf/resource/output/rc_report_TIMESTAMP.json
+    - tests/perf/resource/output/rc_dashboard_TIMESTAMP.png
+    - tests/perf/resource/output/resource_timeline_TIMESTAMP.png
 """
 
 import os
@@ -41,8 +41,8 @@ import threading
 
 # Add parent directory to path
 SCRIPT_DIR = Path(__file__).parent.absolute()
-PARENT_DIR = SCRIPT_DIR.parent
-sys.path.insert(0, str(PARENT_DIR))
+ROOT_DIR = SCRIPT_DIR.parents[2]
+sys.path.insert(0, str(ROOT_DIR))
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from resource_monitor import ResourceMonitor
@@ -97,8 +97,8 @@ class NGFWPipelineManager:
         """Find the correct Python executable"""
         # Check for venv
         venv_paths = [
-            PARENT_DIR / "venv" / "bin" / "python3",
-            PARENT_DIR / "venv_test" / "bin" / "python3"
+            ROOT_DIR / "venv" / "bin" / "python3",
+            ROOT_DIR / "venv_test" / "bin" / "python3"
         ]
         
         for path in venv_paths:
@@ -117,8 +117,8 @@ class NGFWPipelineManager:
             with open(log_file, 'w') as f:
                 self.eve_watcher_proc = subprocess.Popen(
                     [self.python_cmd, "-m", "vajra.pipeline.eve_watcher"],
-                    cwd=str(PARENT_DIR),
-                    env={**os.environ, "PYTHONPATH": str(PARENT_DIR / "src")},
+                    cwd=str(ROOT_DIR),
+                    env={**os.environ, "PYTHONPATH": str(ROOT_DIR / "src")},
                     stdout=f,
                     stderr=subprocess.STDOUT,
                     start_new_session=True
@@ -143,7 +143,7 @@ class NGFWPipelineManager:
         log("Starting main NGFW pipeline (start_macos.sh)...")
         
         try:
-            start_script = PARENT_DIR / "scripts" / "start_macos.sh"
+            start_script = ROOT_DIR / "scripts" / "start_macos.sh"
             log_file = LOGS_DIR / "start_macos.log"
             
             # Make sure script is executable
@@ -152,7 +152,7 @@ class NGFWPipelineManager:
             with open(log_file, 'w') as f:
                 self.start_macos_proc = subprocess.Popen(
                     ["sudo", str(start_script)],
-                    cwd=str(PARENT_DIR),
+                    cwd=str(ROOT_DIR),
                     stdout=f,
                     stderr=subprocess.STDOUT,
                     start_new_session=True
@@ -200,7 +200,7 @@ class NGFWPipelineManager:
         
         # Stop start_macos.sh processes
         try:
-            stop_script = PARENT_DIR / "scripts" / "stop_macos.sh"
+            stop_script = ROOT_DIR / "scripts" / "stop_macos.sh"
             if stop_script.exists():
                 subprocess.run(["sudo", str(stop_script)], timeout=30)
         except:
@@ -251,14 +251,14 @@ class LoadSimulator:
         log(f"Generated {count} HTTP requests")
     
     def generate_attack_traffic(self, duration: int):
-        """Simulate attack traffic using attack_test.py"""
+        """Simulate attack traffic using tools/attack_simulator.py"""
         try:
-            attack_script = PARENT_DIR / "attack_test.py"
+            attack_script = ROOT_DIR / "tools" / "attack_simulator.py"
             if attack_script.exists():
                 log("Generating attack traffic...")
                 subprocess.run(
                     ["python3", str(attack_script), "--target", self.target_ip, "--quick"],
-                    cwd=str(PARENT_DIR),
+                    cwd=str(ROOT_DIR),
                     timeout=duration,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL

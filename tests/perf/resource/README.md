@@ -106,7 +106,7 @@ The RC test follows this sequence:
 
 ## Output Files
 
-All output files are saved in `RC_testing/output/` with timestamps:
+All output files are saved in `tests/perf/resource/output/` with timestamps:
 
 ### JSON Reports
 
@@ -140,7 +140,7 @@ All output files are saved in `RC_testing/output/` with timestamps:
 
 ### Logs
 
-All detailed logs are saved in `RC_testing/logs/`:
+All detailed logs are saved in `tests/perf/resource/logs/`:
 - `eve_watcher.log` - eve_watcher output
 - `start_macos.log` - Pipeline startup logs
 
@@ -247,7 +247,7 @@ sudo python3 resource_monitor.py --duration 60
 ### Pipeline fails to start
 1. Check if ports are available (8000, 8001, 8080)
 2. Verify Suricata is installed: `which suricata`
-3. Check logs in `RC_testing/logs/`
+3. Check logs in `tests/perf/resource/logs/`
 4. Ensure you have network interface access
 
 ### No processes found
@@ -331,13 +331,13 @@ jobs:
         run: pip install psutil matplotlib
       - name: Run RC tests
         run: |
-          cd linux/RC_testing
+          cd tests/perf/resource
           sudo python3 rc_test_runner.py
       - name: Upload results
         uses: actions/upload-artifact@v2
         with:
           name: rc-test-results
-          path: linux/RC_testing/output/
+          path: tests/perf/resource/output/
 ```
 
 ## Performance Benchmarks
@@ -360,7 +360,7 @@ These are typical values observed on a development machine (M1 Mac, 16GB RAM):
 ## Architecture
 
 ```
-RC_testing/
+tests/perf/resource/
 ├── resource_monitor.py      # Core monitoring module
 ├── rc_test_runner.py        # Main test orchestrator
 ├── run_rc_tests.sh          # Bash wrapper script
@@ -390,6 +390,6 @@ Part of the SIH L5 NGFW project.
 
 For issues or questions:
 1. Check the troubleshooting section
-2. Review log files in `RC_testing/logs/`
+2. Review log files in `tests/perf/resource/logs/`
 3. Verify all components work independently
 4. Contact the development team

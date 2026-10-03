@@ -1,7 +1,5 @@
 #!/bin/bash
-# =============================================================================
 # NGFW Complete Installation Script
-# =============================================================================
 #
 # Installs all dependencies for the ML-Enhanced NGFW with Federated Learning
 #
@@ -10,7 +8,6 @@
 #   sudo ./scripts/install.sh --minimal # Skip Kafka, just basic deps
 #   sudo ./scripts/install.sh --help    # Show help
 #
-# =============================================================================
 
 set -e
 
@@ -51,18 +48,14 @@ echo "║           NGFW INSTALLATION - ML Enhanced with Federated Learning     
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
-# =============================================================================
 # Root Check
-# =============================================================================
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}ERROR: Must run as root${NC}"
     echo "Run: sudo ./scripts/install.sh"
     exit 1
 fi
 
-# =============================================================================
 # Detect Package Manager
-# =============================================================================
 if command -v apt-get &> /dev/null; then
     PKG_MANAGER="apt-get"
     UPDATE_CMD="apt-get update"
@@ -87,16 +80,12 @@ fi
 echo -e "${BLUE}Package Manager: $PKG_MANAGER${NC}"
 echo ""
 
-# =============================================================================
 # Step 1: Update Package Lists
-# =============================================================================
 echo -e "${YELLOW}[1/7] Updating package lists...${NC}"
 $UPDATE_CMD
-echo -e "${GREEN}  ✓ Package lists updated${NC}"
+echo -e "${GREEN}  [OK] Package lists updated${NC}"
 
-# =============================================================================
 # Step 2: Install System Dependencies
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[2/7] Installing system dependencies...${NC}"
 
@@ -123,11 +112,9 @@ elif [ "$PKG_MANAGER" = "pacman" ]; then
         libpcap tcpdump
 fi
 
-echo -e "${GREEN}  ✓ System dependencies installed${NC}"
+echo -e "${GREEN}  [OK] System dependencies installed${NC}"
 
-# =============================================================================
 # Step 3: Install Suricata
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[3/7] Installing Suricata IDS/IPS...${NC}"
 
@@ -148,17 +135,15 @@ fi
 # Verify Suricata
 if command -v suricata &> /dev/null; then
     SURICATA_VERSION=$(suricata -V 2>&1 | grep -oP 'Suricata version \K[0-9.]+' || echo "unknown")
-    echo -e "${GREEN}  ✓ Suricata installed (version: $SURICATA_VERSION)${NC}"
+    echo -e "${GREEN}  [OK] Suricata installed (version: $SURICATA_VERSION)${NC}"
 else
-    echo -e "${RED}  ✗ Suricata installation failed${NC}"
+    echo -e "${RED}  [FAIL] Suricata installation failed${NC}"
 fi
 
 # Update Suricata rules
-suricata-update 2>/dev/null || echo -e "${YELLOW}  ⚠ suricata-update not available, using local rules only${NC}"
+suricata-update 2>/dev/null || echo -e "${YELLOW}  [WARN] suricata-update not available, using local rules only${NC}"
 
-# =============================================================================
 # Step 4: Install Kafka (Optional)
-# =============================================================================
 echo ""
 if [ "$MINIMAL_INSTALL" = "false" ]; then
     echo -e "${YELLOW}[4/7] Installing Kafka (optional, for distributed mode)...${NC}"
@@ -181,24 +166,22 @@ if [ "$MINIMAL_INSTALL" = "false" ]; then
         cd /tmp
         wget -q "https://downloads.apache.org/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz" -O kafka.tgz 2>/dev/null || \
         wget -q "https://archive.apache.org/dist/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz" -O kafka.tgz 2>/dev/null || \
-        echo -e "${YELLOW}  ⚠ Kafka download failed (optional, system will work without it)${NC}"
+        echo -e "${YELLOW}  [WARN] Kafka download failed (optional, system will work without it)${NC}"
         
         if [ -f kafka.tgz ]; then
             tar -xzf kafka.tgz
             mv "kafka_${SCALA_VERSION}-${KAFKA_VERSION}" "$KAFKA_DIR"
             rm kafka.tgz
-            echo -e "${GREEN}  ✓ Kafka installed to $KAFKA_DIR${NC}"
+            echo -e "${GREEN}  [OK] Kafka installed to $KAFKA_DIR${NC}"
         fi
     else
-        echo -e "${GREEN}  ✓ Kafka already installed at $KAFKA_DIR${NC}"
+        echo -e "${GREEN}  [OK] Kafka already installed at $KAFKA_DIR${NC}"
     fi
 else
     echo -e "${YELLOW}[4/7] Skipping Kafka (--minimal mode)${NC}"
 fi
 
-# =============================================================================
 # Step 5: Setup Python Virtual Environment
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[5/7] Setting up Python virtual environment...${NC}"
 
@@ -207,9 +190,9 @@ cd "$ROOT_DIR"
 
 if [ ! -d "venv" ]; then
     python3 -m venv venv
-    echo -e "${GREEN}  ✓ Virtual environment created${NC}"
+    echo -e "${GREEN}  [OK] Virtual environment created${NC}"
 else
-    echo -e "${GREEN}  ✓ Virtual environment already exists${NC}"
+    echo -e "${GREEN}  [OK] Virtual environment already exists${NC}"
 fi
 
 # Activate and install packages
@@ -219,11 +202,9 @@ pip install --upgrade pip
 echo -e "${BLUE}  Installing Python packages...${NC}"
 pip install -r requirements.txt
 
-echo -e "${GREEN}  ✓ Python packages installed${NC}"
+echo -e "${GREEN}  [OK] Python packages installed${NC}"
 
-# =============================================================================
 # Step 6: Setup Directories and Files
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[6/7] Setting up directories and configuration...${NC}"
 
@@ -239,15 +220,13 @@ if [ ! -f ".env" ]; then
     if [ -f ".env.example" ]; then
         cp .env.example .env
         chmod 600 .env
-        echo -e "${GREEN}  ✓ Created .env from template (configure API keys!)${NC}"
+        echo -e "${GREEN}  [OK] Created .env from template (configure API keys!)${NC}"
     fi
 fi
 
-echo -e "${GREEN}  ✓ Directories created${NC}"
+echo -e "${GREEN}  [OK] Directories created${NC}"
 
-# =============================================================================
 # Step 7: Verify Installation
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[7/7] Verifying installation...${NC}"
 
@@ -255,18 +234,18 @@ ERRORS=0
 
 # Check Suricata
 if command -v suricata &> /dev/null; then
-    echo -e "${GREEN}  ✓ Suricata: OK${NC}"
+    echo -e "${GREEN}  [OK] Suricata: OK${NC}"
 else
-    echo -e "${RED}  ✗ Suricata: NOT FOUND${NC}"
+    echo -e "${RED}  [FAIL] Suricata: NOT FOUND${NC}"
     ERRORS=$((ERRORS+1))
 fi
 
 # Check Python
 if command -v python3 &> /dev/null; then
     PYTHON_VERSION=$(python3 --version)
-    echo -e "${GREEN}  ✓ Python: $PYTHON_VERSION${NC}"
+    echo -e "${GREEN}  [OK] Python: $PYTHON_VERSION${NC}"
 else
-    echo -e "${RED}  ✗ Python: NOT FOUND${NC}"
+    echo -e "${RED}  [FAIL] Python: NOT FOUND${NC}"
     ERRORS=$((ERRORS+1))
 fi
 
@@ -274,53 +253,51 @@ fi
 source venv/bin/activate
 
 if python3 -c "import numpy" 2>/dev/null; then
-    echo -e "${GREEN}  ✓ NumPy: OK${NC}"
+    echo -e "${GREEN}  [OK] NumPy: OK${NC}"
 else
-    echo -e "${RED}  ✗ NumPy: Not installed (REQUIRED for ML)${NC}"
+    echo -e "${RED}  [FAIL] NumPy: Not installed (REQUIRED for ML)${NC}"
     ERRORS=$((ERRORS+1))
 fi
 
 if python3 -c "import scapy" 2>/dev/null; then
-    echo -e "${GREEN}  ✓ Scapy: OK${NC}"
+    echo -e "${GREEN}  [OK] Scapy: OK${NC}"
 else
-    echo -e "${YELLOW}  ⚠ Scapy: Not installed (packet inspection disabled)${NC}"
+    echo -e "${YELLOW}  [WARN] Scapy: Not installed (packet inspection disabled)${NC}"
 fi
 
 if python3 -c "import sklearn" 2>/dev/null; then
-    echo -e "${GREEN}  ✓ Scikit-learn: OK${NC}"
+    echo -e "${GREEN}  [OK] Scikit-learn: OK${NC}"
 else
-    echo -e "${YELLOW}  ⚠ Scikit-learn: Not installed${NC}"
+    echo -e "${YELLOW}  [WARN] Scikit-learn: Not installed${NC}"
 fi
 
 if python3 -c "import uvicorn" 2>/dev/null; then
-    echo -e "${GREEN}  ✓ Uvicorn: OK${NC}"
+    echo -e "${GREEN}  [OK] Uvicorn: OK${NC}"
 else
-    echo -e "${YELLOW}  ⚠ Uvicorn: Not installed (inference API disabled)${NC}"
+    echo -e "${YELLOW}  [WARN] Uvicorn: Not installed (inference API disabled)${NC}"
 fi
 
 if python3 -c "import fastapi" 2>/dev/null; then
-    echo -e "${GREEN}  ✓ FastAPI: OK${NC}"
+    echo -e "${GREEN}  [OK] FastAPI: OK${NC}"
 else
-    echo -e "${YELLOW}  ⚠ FastAPI: Not installed (needed for FL)${NC}"
+    echo -e "${YELLOW}  [WARN] FastAPI: Not installed (needed for FL)${NC}"
 fi
 
 if python3 -c "import flwr" 2>/dev/null; then
-    echo -e "${GREEN}  ✓ Flower (FL): OK${NC}"
+    echo -e "${GREEN}  [OK] Flower (FL): OK${NC}"
 else
-    echo -e "${YELLOW}  ⚠ Flower: Not installed (needed for FL)${NC}"
+    echo -e "${YELLOW}  [WARN] Flower: Not installed (needed for FL)${NC}"
 fi
 
 # Check iptables
 if command -v iptables &> /dev/null; then
-    echo -e "${GREEN}  ✓ iptables: OK${NC}"
+    echo -e "${GREEN}  [OK] iptables: OK${NC}"
 else
-    echo -e "${RED}  ✗ iptables: NOT FOUND${NC}"
+    echo -e "${RED}  [FAIL] iptables: NOT FOUND${NC}"
     ERRORS=$((ERRORS+1))
 fi
 
-# =============================================================================
 # Final Summary
-# =============================================================================
 echo ""
 if [ $ERRORS -eq 0 ]; then
     echo -e "${BOLD}${GREEN}"
@@ -345,7 +322,7 @@ echo ""
 
 echo -e "${BOLD}Quick Start:${NC}"
 echo -e "  ${CYAN}sudo ./scripts/start.sh${NC}           # Start everything (auto-detects network)"
-echo -e "  ${CYAN}python3 attack_test.py${NC}    # Run attack test (auto-detects target)"
+echo -e "  ${CYAN}python3 tools/attack_simulator.py${NC}    # Run attack test (auto-detects target)"
 echo -e "  ${CYAN}sudo ./scripts/stop.sh${NC}            # Stop everything"
 echo ""
 

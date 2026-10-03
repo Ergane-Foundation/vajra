@@ -38,8 +38,8 @@ import threading
 
 # Add current directory to path
 SCRIPT_DIR = Path(__file__).parent.absolute()
-PARENT_DIR = SCRIPT_DIR.parent
-sys.path.insert(0, str(PARENT_DIR))
+ROOT_DIR = SCRIPT_DIR.parents[2]
+sys.path.insert(0, str(ROOT_DIR))
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from load_generator import (
@@ -99,8 +99,8 @@ class NGFWPipelineManager:
     def find_python(self) -> str:
         """Find Python executable"""
         venv_paths = [
-            PARENT_DIR / "venv" / "bin" / "python3",
-            PARENT_DIR / "venv_test" / "bin" / "python3"
+            ROOT_DIR / "venv" / "bin" / "python3",
+            ROOT_DIR / "venv_test" / "bin" / "python3"
         ]
         
         for path in venv_paths:
@@ -120,8 +120,8 @@ class NGFWPipelineManager:
             with open(eve_log, 'w') as f:
                 self.eve_watcher_proc = subprocess.Popen(
                     [self.python_cmd, "-m", "vajra.pipeline.eve_watcher"],
-                    cwd=str(PARENT_DIR),
-                    env={**os.environ, "PYTHONPATH": str(PARENT_DIR / "src")},
+                    cwd=str(ROOT_DIR),
+                    env={**os.environ, "PYTHONPATH": str(ROOT_DIR / "src")},
                     stdout=f,
                     stderr=subprocess.STDOUT,
                     start_new_session=True
@@ -130,7 +130,7 @@ class NGFWPipelineManager:
             time.sleep(3)
             
             # Start main pipeline
-            start_script = PARENT_DIR / "scripts" / "start_macos.sh"
+            start_script = ROOT_DIR / "scripts" / "start_macos.sh"
             pipeline_log = LOGS_DIR / "pipeline.log"
             
             os.chmod(start_script, 0o755)
@@ -138,7 +138,7 @@ class NGFWPipelineManager:
             with open(pipeline_log, 'w') as f:
                 self.pipeline_proc = subprocess.Popen(
                     ["sudo", str(start_script)],
-                    cwd=str(PARENT_DIR),
+                    cwd=str(ROOT_DIR),
                     stdout=f,
                     stderr=subprocess.STDOUT,
                     start_new_session=True
@@ -159,7 +159,7 @@ class NGFWPipelineManager:
         log("Stopping pipeline...")
         
         try:
-            stop_script = PARENT_DIR / "scripts" / "stop_macos.sh"
+            stop_script = ROOT_DIR / "scripts" / "stop_macos.sh"
             if stop_script.exists():
                 subprocess.run(["sudo", str(stop_script)], timeout=30)
         except:
@@ -278,7 +278,7 @@ class LoadTestOrchestrator:
             print(f"  Avg Latency: {metrics.avg_latency_ms:.2f}ms")
             print(f"  P95 Latency: {metrics.p95_latency_ms:.2f}ms")
         else:
-            print(f"\n{Colors.GREEN}✓ Test Complete{Colors.ENDC}")
+            print(f"\n{Colors.GREEN}[OK] Test Complete{Colors.ENDC}")
             print(f"\nRequests:")
             print(f"  Total:      {metrics.total_requests:>8}")
             print(f"  Successful: {metrics.successful_requests:>8} ({metrics.success_rate*100:.1f}%)")

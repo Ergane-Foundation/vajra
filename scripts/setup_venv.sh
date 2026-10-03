@@ -54,45 +54,45 @@ print("Python version:", sys.version)
 
 try:
     import numpy as np
-    print("✅ numpy:", np.__version__)
+    print("[OK] numpy:", np.__version__)
 except ImportError as e:
-    print("❌ numpy: NOT INSTALLED")
+    print("[FAIL] numpy: NOT INSTALLED")
     
 try:
     import pandas as pd
-    print("✅ pandas:", pd.__version__)
+    print("[OK] pandas:", pd.__version__)
 except ImportError:
-    print("❌ pandas: NOT INSTALLED")
+    print("[FAIL] pandas: NOT INSTALLED")
     
 try:
     import sklearn
-    print("✅ scikit-learn:", sklearn.__version__)
+    print("[OK] scikit-learn:", sklearn.__version__)
 except ImportError:
-    print("❌ scikit-learn: NOT INSTALLED")
+    print("[FAIL] scikit-learn: NOT INSTALLED")
     
 try:
     import joblib
-    print("✅ joblib:", joblib.__version__)
+    print("[OK] joblib:", joblib.__version__)
 except ImportError:
-    print("❌ joblib: NOT INSTALLED")
+    print("[FAIL] joblib: NOT INSTALLED")
     
 try:
     import torch
-    print("✅ torch:", torch.__version__)
+    print("[OK] torch:", torch.__version__)
 except ImportError:
-    print("❌ torch: NOT INSTALLED")
+    print("[FAIL] torch: NOT INSTALLED")
 
 try:
     import requests
-    print("✅ requests:", requests.__version__)
+    print("[OK] requests:", requests.__version__)
 except ImportError:
-    print("❌ requests: NOT INSTALLED")
+    print("[FAIL] requests: NOT INSTALLED")
 
 try:
     import google.generativeai
-    print("✅ google-generativeai: installed")
+    print("[OK] google-generativeai: installed")
 except ImportError:
-    print("❌ google-generativeai: NOT INSTALLED")
+    print("[FAIL] google-generativeai: NOT INSTALLED")
 EOF
 
 echo ""
@@ -105,7 +105,7 @@ echo "  source venv/bin/activate"
 echo ""
 echo "To test the models, run:"
 echo "  python3 test_real_models.py"
-echo "  python3 attack_test.py --target 192.168.1.6 --eta"
-echo "  python3 attack_test.py --target 192.168.1.6 --ml"
-echo "  python3 attack_test.py --target 192.168.1.6 --uba"
+echo "  python3 tools/attack_simulator.py --target 192.168.1.6 --eta"
+echo "  python3 tools/attack_simulator.py --target 192.168.1.6 --ml"
+echo "  python3 tools/attack_simulator.py --target 192.168.1.6 --uba"
 echo ""

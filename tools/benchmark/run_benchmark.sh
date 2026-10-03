@@ -1,9 +1,9 @@
 #!/bin/bash
 # Benchmark Runner Script - Tests Packet Inspector Performance
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
-export PYTHONPATH="$SCRIPT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$ROOT_DIR"
+export PYTHONPATH="$ROOT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
 
 echo "=== Firewall Performance Benchmark ==="
 echo ""
@@ -41,17 +41,17 @@ sleep 5
 
 # Check if running
 if ! ps -p $PI_PID > /dev/null 2>&1; then
-    echo "❌ Packet Inspector failed to start. Check /tmp/packet_inspector.log"
+    echo "[FAIL] Packet Inspector failed to start. Check /tmp/packet_inspector.log"
     cat /tmp/packet_inspector.log
     exit 1
 fi
 
-echo "✅ Packet Inspector running"
+echo "[OK] Packet Inspector running"
 echo ""
 
 # Run benchmark
 echo "Running benchmark tests..."
-python3 benchmark.py
+python3 tools/benchmark/benchmark.py
 
 # Cleanup
 echo ""
