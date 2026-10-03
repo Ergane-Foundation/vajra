@@ -167,7 +167,7 @@ class DeepInsiderModel:
         return self.model.predict_proba(X)
 
 
-def load_ml_model(model_path: str = "ml_models/deep_insider_threat_model.pkl") -> Optional[Any]:
+def load_ml_model(model_path: str = "models/deep_insider_threat_model.pkl") -> Optional[Any]:
     """
     Load the ML insider threat detection model
     
@@ -201,7 +201,7 @@ def load_ml_model(model_path: str = "ml_models/deep_insider_threat_model.pkl") -
         # Try joblib first
         try:
             model = joblib.load(path)
-            logger.info(f"✅ ML Model loaded successfully with joblib")
+            logger.info(f"[OK] ML Model loaded successfully with joblib")
             return model
         except Exception as e:
             logger.warning(f"joblib load failed: {e}, trying pickle...")
@@ -209,7 +209,7 @@ def load_ml_model(model_path: str = "ml_models/deep_insider_threat_model.pkl") -
             # Fall back to pickle with registered classes
             with open(path, 'rb') as f:
                 model = pickle.load(f)
-            logger.info(f"✅ ML Model loaded with pickle")
+            logger.info(f"[OK] ML Model loaded with pickle")
             return model
             
     except Exception as e:
@@ -219,7 +219,7 @@ def load_ml_model(model_path: str = "ml_models/deep_insider_threat_model.pkl") -
         return None
 
 
-def load_eta_model(model_path: str = "ml_models/eta_model.pkl") -> Optional[Any]:
+def load_eta_model(model_path: str = "models/eta_model.pkl") -> Optional[Any]:
     """
     Load the ETA encrypted traffic analysis model
     
@@ -246,7 +246,7 @@ def load_eta_model(model_path: str = "ml_models/eta_model.pkl") -> Optional[Any]
         
         # ETA model should be a joblib dump
         model = joblib.load(path)
-        logger.info(f"✅ ETA Model loaded successfully")
+        logger.info(f"[OK] ETA Model loaded successfully")
         logger.info(f"ETA Model type: {type(model)}")
         
         if isinstance(model, dict):
@@ -311,7 +311,7 @@ def get_ml_predictions(model: Any, features: Dict[str, float]) -> Dict[str, Any]
         return {'prediction': 0, 'confidence': 0.0, 'is_threat': False}
 
 
-def load_backdoor_model(model_dir: str = "ml_models/backdoor_detection") -> Optional[Any]:
+def load_backdoor_model(model_dir: str = "models/backdoor_detection") -> Optional[Any]:
     """
     Load backdoor detection model with its preprocessing tools
     
@@ -345,12 +345,12 @@ def load_backdoor_model(model_dir: str = "ml_models/backdoor_detection") -> Opti
         # Try joblib first, then pickle
         try:
             model = joblib.load(model_file)
-            logger.info(f"✅ Backdoor model loaded (joblib)")
+            logger.info(f"[OK] Backdoor model loaded (joblib)")
         except Exception as e:
             logger.debug(f"joblib failed: {e}, trying pickle...")
             with open(model_file, 'rb') as f:
                 model = pickle.load(f)
-            logger.info(f"✅ Backdoor model loaded (pickle)")
+            logger.info(f"[OK] Backdoor model loaded (pickle)")
         
         # Load label encoders
         encoders_file = model_path / "label_encoders.pkl"
@@ -358,11 +358,11 @@ def load_backdoor_model(model_dir: str = "ml_models/backdoor_detection") -> Opti
         if encoders_file.exists():
             try:
                 encoders = joblib.load(encoders_file)
-                logger.info(f"✅ Label encoders loaded (joblib)")
+                logger.info(f"[OK] Label encoders loaded (joblib)")
             except:
                 with open(encoders_file, 'rb') as f:
                     encoders = pickle.load(f)
-                logger.info(f"✅ Label encoders loaded (pickle)")
+                logger.info(f"[OK] Label encoders loaded (pickle)")
         else:
             logger.warning(f"label_encoders.pkl not found, will skip encoding")
         
@@ -372,11 +372,11 @@ def load_backdoor_model(model_dir: str = "ml_models/backdoor_detection") -> Opti
         if scaler_file.exists():
             try:
                 scaler = joblib.load(scaler_file)
-                logger.info(f"✅ Scaler loaded (joblib)")
+                logger.info(f"[OK] Scaler loaded (joblib)")
             except:
                 with open(scaler_file, 'rb') as f:
                     scaler = pickle.load(f)
-                logger.info(f"✅ Scaler loaded (pickle)")
+                logger.info(f"[OK] Scaler loaded (pickle)")
         else:
             logger.warning(f"scaler.pkl not found, will skip scaling")
         
@@ -388,7 +388,7 @@ def load_backdoor_model(model_dir: str = "ml_models/backdoor_detection") -> Opti
             'model_dir': str(model_path)
         }
         
-        logger.info(f"✅ Backdoor detection model fully loaded")
+        logger.info(f"[OK] Backdoor detection model fully loaded")
         return model_dict
             
     except Exception as e:
@@ -398,7 +398,7 @@ def load_backdoor_model(model_dir: str = "ml_models/backdoor_detection") -> Opti
         return None
 
 
-def load_h5_model(model_path: str = "ml_models/domain_classifier.h5") -> Optional[Any]:
+def load_h5_model(model_path: str = "models/domain_classifier.h5") -> Optional[Any]:
     """
     Load Keras/TensorFlow H5 model
     
@@ -433,7 +433,7 @@ def load_h5_model(model_path: str = "ml_models/domain_classifier.h5") -> Optiona
         
         # Load the model
         model = keras.models.load_model(path)
-        logger.info(f"✅ H5 Model loaded successfully")
+        logger.info(f"[OK] H5 Model loaded successfully")
         logger.info(f"H5 Model input shape: {model.input_shape}")
         logger.info(f"H5 Model output shape: {model.output_shape}")
         
@@ -446,7 +446,7 @@ def load_h5_model(model_path: str = "ml_models/domain_classifier.h5") -> Optiona
         return None
 
 
-def load_tflite_model(model_path: str = "ml_models/gnn_fingerprint.tflite") -> Optional[Any]:
+def load_tflite_model(model_path: str = "models/gnn_fingerprint.tflite") -> Optional[Any]:
     """
     Load TensorFlow Lite model
     
@@ -486,7 +486,7 @@ def load_tflite_model(model_path: str = "ml_models/gnn_fingerprint.tflite") -> O
         input_details = interpreter.get_input_details()
         output_details = interpreter.get_output_details()
         
-        logger.info(f"✅ TFLite Model loaded successfully")
+        logger.info(f"[OK] TFLite Model loaded successfully")
         logger.info(f"TFLite Input shape: {input_details[0]['shape']}")
         logger.info(f"TFLite Output shape: {output_details[0]['shape']}")
         

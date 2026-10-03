@@ -228,10 +228,10 @@ echo ""
 echo -e "${YELLOW}[6/7] Setting up directories and configuration...${NC}"
 
 # Create directories
-mkdir -p logs logs/reports rules ml_models fl_models
+mkdir -p logs logs/reports rules models fl_models
 
 # Set permissions
-chmod 755 logs rules ml_models fl_models
+chmod 755 logs rules models fl_models
 chmod +x start.sh stop.sh 2>/dev/null || true
 chmod +x start_inference_api.sh 2>/dev/null || true
 
@@ -341,7 +341,7 @@ echo ""
 echo -e "${BOLD}Configuration (Optional):${NC}"
 echo -e "  ${YELLOW}Network interface is AUTO-DETECTED! No manual setup needed.${NC}"
 echo -e "  1. Configure ${CYAN}.env${NC} with your Google API key (for AI rules)"
-echo -e "  2. Add ML models to ${CYAN}ml_models/${NC} directory (optional)"
+echo -e "  2. Add ML models to ${CYAN}models/${NC} directory (optional)"
 echo ""
 
 echo -e "${BOLD}Quick Start:${NC}"
