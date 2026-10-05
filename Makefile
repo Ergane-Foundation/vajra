@@ -12,7 +12,7 @@ START_SCRIPT := scripts/start.sh
 STOP_SCRIPT  := scripts/stop.sh
 endif
 
-.PHONY: help install setup start stop status lint format test clean
+.PHONY: help install setup setup-full start stop status lint format test clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -24,6 +24,9 @@ setup: ## Create the virtualenv and install vajra in editable mode with dev tool
 	$(PYTHON) -m venv $(VENV)
 	$(BIN)/pip install --upgrade pip
 	$(BIN)/pip install -e ".[dev]"
+
+setup-full: setup ## Also install every optional extra (ML, DPI, FL, rule generation, perf tools)
+	$(BIN)/pip install -e ".[all,dev]"
 
 start: ## Start the pipeline (live mode, modifies host firewall); requires sudo
 	sudo ./$(START_SCRIPT)

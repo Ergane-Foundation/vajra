@@ -1,111 +1,51 @@
 #!/bin/bash
-# Setup script for Linux environment
-# Run this on your Linux machine before testing
+# Create the Python virtual environment and install Vajra.
+# Optional extras can be selected with VAJRA_EXTRAS, for example:
+#   VAJRA_EXTRAS=ml,dpi ./scripts/setup_venv.sh
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-set -e  # Exit on error
+set -e
 
-echo "=================================================="
-echo "Vajra - Linux Environment Setup"
-echo "=================================================="
-
-# Check Python version
+echo "Vajra - Python environment setup"
 echo ""
-echo "[1/6] Checking Python version..."
+
+echo "[1/4] Checking Python version..."
 python3 --version
 
-# Check if virtual environment exists
 if [ -d "venv" ]; then
-    echo ""
-    echo "[2/6] Virtual environment found, activating..."
-    source venv/bin/activate
+    echo "[2/4] Using existing virtual environment"
 else
-    echo ""
-    echo "[2/6] Creating virtual environment..."
+    echo "[2/4] Creating virtual environment..."
     python3 -m venv venv
-    source venv/bin/activate
+fi
+source venv/bin/activate
+
+echo "[3/4] Installing Vajra..."
+pip install --upgrade pip
+if [ -n "$VAJRA_EXTRAS" ]; then
+    pip install -e ".[$VAJRA_EXTRAS]"
+else
+    pip install -e .
 fi
 
-# Upgrade pip
-echo ""
-echo "[3/6] Upgrading pip..."
-pip install --upgrade pip
-
-# Install required packages
-echo ""
-echo "[4/6] Installing required Python packages..."
-pip install numpy pandas scikit-learn joblib torch requests scapy imbalanced-learn google-generativeai
-
-# Create logs directory
-echo ""
-echo "[5/6] Creating logs directory..."
+echo "[4/4] Creating logs directory..."
 mkdir -p logs
-chmod 777 logs
 
-# Verify installations
-echo ""
-echo "[6/6] Verifying installations..."
-python3 << 'EOF'
-import sys
-print("\nPython executable:", sys.executable)
-print("Python version:", sys.version)
-
-try:
-    import numpy as np
-    print("[OK] numpy:", np.__version__)
-except ImportError as e:
-    print("[FAIL] numpy: NOT INSTALLED")
-    
-try:
-    import pandas as pd
-    print("[OK] pandas:", pd.__version__)
-except ImportError:
-    print("[FAIL] pandas: NOT INSTALLED")
-    
-try:
-    import sklearn
-    print("[OK] scikit-learn:", sklearn.__version__)
-except ImportError:
-    print("[FAIL] scikit-learn: NOT INSTALLED")
-    
-try:
-    import joblib
-    print("[OK] joblib:", joblib.__version__)
-except ImportError:
-    print("[FAIL] joblib: NOT INSTALLED")
-    
-try:
-    import torch
-    print("[OK] torch:", torch.__version__)
-except ImportError:
-    print("[FAIL] torch: NOT INSTALLED")
-
-try:
-    import requests
-    print("[OK] requests:", requests.__version__)
-except ImportError:
-    print("[FAIL] requests: NOT INSTALLED")
-
-try:
-    import google.generativeai
-    print("[OK] google-generativeai: installed")
-except ImportError:
-    print("[FAIL] google-generativeai: NOT INSTALLED")
-EOF
+python3 - << 'PYEOF'
+import importlib
+for name in ["numpy", "pandas", "sklearn", "joblib", "requests", "fastapi", "vajra"]:
+    try:
+        module = importlib.import_module(name)
+        print(f"[OK] {name} {getattr(module, '__version__', '')}")
+    except ImportError:
+        print(f"[FAIL] {name} is not installed")
+PYEOF
 
 echo ""
-echo "=================================================="
-echo "Setup Complete!"
-echo "=================================================="
-echo ""
-echo "To activate the environment, run:"
+echo "Setup complete. Activate the environment with:"
 echo "  source venv/bin/activate"
 echo ""
-echo "To test the models, run:"
-echo "  python3 test_real_models.py"
-echo "  python3 tools/attack_simulator.py --target 192.168.1.6 --eta"
-echo "  python3 tools/attack_simulator.py --target 192.168.1.6 --ml"
-echo "  python3 tools/attack_simulator.py --target 192.168.1.6 --uba"
-echo ""
+echo "Try the attack simulator against a test machine:"
+echo "  python3 tools/attack_simulator.py --target <target-ip>"

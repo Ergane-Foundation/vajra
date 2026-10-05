@@ -19,6 +19,13 @@ classifiers = [
 dynamic = ["version", "dependencies"]
 
 [project.optional-dependencies]
+ml = ["tensorflow>=2.13", "torch>=2.0", "imbalanced-learn>=0.12"]
+dpi = ["scapy>=2.5"]
+fl = ["flwr>=1.6"]
+rulegen = ["google-generativeai>=0.3"]
+perf = ["matplotlib>=3.7", "psutil>=5.9"]
+tools = ["websockets>=12.0"]
+all = ["vajra[ml,dpi,fl,rulegen,perf,tools]"]
 dev = ["pytest>=8", "ruff>=0.6"]
 
 [project.scripts]

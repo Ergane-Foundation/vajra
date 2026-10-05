@@ -1,68 +1,16 @@
-# Vajra - Python Requirements
+# Core runtime dependencies. Optional features are extras in pyproject.toml:
+#   pip install -e ".[ml]"       TensorFlow and PyTorch models
+#   pip install -e ".[dpi]"      Scapy packet inspection (GPL-2.0)
+#   pip install -e ".[fl]"       Federated learning (Flower)
+#   pip install -e ".[rulegen]"  AI rule generation (Google Gemini)
+#   pip install -e ".[perf]"     Performance test harnesses
 
-# Kafka
 confluent-kafka>=2.3.0
-
-# Configuration
-pyyaml>=6.0
-
-# HTTP requests
 requests>=2.31.0
-
-# ML/Data Science - Core
 numpy>=1.24.0
+pandas>=2.0.0
 scikit-learn>=1.3.0
 joblib>=1.3.0
-pandas>=2.0.0
-
-# TensorFlow for H5 and TFLite models
-tensorflow>=2.13.0
-
-# Packet Inspection (Deep Packet Inspection with Scapy)
-scapy>=2.5.0
-
-# AI Rule Generation (Google Gemini)
-google-generativeai>=0.3.0
-
-# Advanced Detection Engines
-# FlowPrint dependencies (clustering and preprocessing)
-scipy>=1.11.0
-
-# Kitsune dependencies (online learning autoencoders)
-# Uses numpy and scikit-learn (already included)
-
-# ET-BERT dependencies (transformer-based encrypted traffic analysis)
-# Lightweight implementation uses numpy (already included)
-# For full BERT support (optional):
-# transformers>=4.30.0
-# torch>=2.0.0
-
-# Stratosphere IPS dependencies (behavioral analysis)
-# Uses numpy and pattern matching (already included)
-
-# Exploit Detection dependencies (pattern matching)
-# Uses standard library regex (no additional deps)
-
-# Optional: Additional ML frameworks (uncomment as needed)
-# torch>=2.0.0
-# xgboost>=1.7.0
-# lightgbm>=4.0.0
-
-# Federated Learning
-flwr>=1.6.0
-flwr[simulation]>=1.6.0
-
-# FastAPI & Web Framework
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 pydantic>=2.4.0
-websockets>=12.0
-
-# Environment variable management
-python-dotenv>=1.0.0
-
-# Data serialization for fingerprint storage
-pickle5>=0.0.12; python_version < '3.8'
-
-# Performance monitoring (optional)
-psutil>=5.9.0
