@@ -5,7 +5,7 @@
 #   1. System Setup (install.sh, setup_venv.sh)
 #   2. Python Virtual Environment Setup
 #   3. Suricata IDS (AF_PACKET mode - NFQUEUE not available on macOS)
-#   4. HTTP Server (for testing)
+#   4. HTTP Server (demo attack target)
 #   5. SOAR Engine (with ML and Packet Inspection)
 #   6. Unified Logger
 #   7. Inference API (for Federated Learning)
@@ -518,12 +518,15 @@ else
     exit 1
 fi
 
-# Step 3: Start HTTP Server (for testing)
+# Step 3: Start HTTP Server (demo attack target)
 echo ""
 if [ "$ENABLE_HTTP_SERVER" = "true" ]; then
     echo -e "${YELLOW}[3/8] Starting HTTP Server on port $HTTP_PORT...${NC}"
     
-    nohup $PYTHON_CMD -m http.server $HTTP_PORT > logs/http_server.out 2>&1 &
+    # Serve a dedicated demo directory, never the repository itself
+    mkdir -p "$LOGS_DIR/www"
+    echo "Vajra demo target" > "$LOGS_DIR/www/index.html"
+    nohup $PYTHON_CMD -m http.server $HTTP_PORT --directory "$LOGS_DIR/www" > logs/http_server.out 2>&1 &
     HTTP_PID=$!
     echo $HTTP_PID > logs/http_server.pid
     sleep 1
