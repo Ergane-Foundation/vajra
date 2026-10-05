@@ -4,9 +4,9 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-export PYTHONPATH="$SCRIPT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT_DIR"
+export PYTHONPATH="$ROOT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
 
 # Configuration
 DPDK_PROCESSOR="/usr/local/bin/dpdk_packet_processor"
@@ -18,7 +18,7 @@ SURICATA_YAML="/etc/suricata/suricata.yaml"
 SURICATA_DPDK_MODE=false  # Set to true if Suricata built with DPDK
 
 PID_DIR="/var/run/ngfw"
-LOG_DIR="$SCRIPT_DIR/logs"
+LOG_DIR="$ROOT_DIR/logs"
 
 # Colors
 RED='\033[0;31m'
@@ -32,7 +32,7 @@ echo "========================================="
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}⚠️  This script requires root privileges${NC}"
+    echo -e "${RED}[WARN]  This script requires root privileges${NC}"
     echo "Please run with: sudo $0"
     exit 1
 fi
@@ -49,21 +49,21 @@ chmod 666 "$DPDK_FEATURES_FILE"
 echo ""
 echo "Step 1: Checking DPDK packet processor..."
 if [ ! -f "$DPDK_PROCESSOR" ]; then
-    echo -e "${RED}❌ DPDK packet processor not found: $DPDK_PROCESSOR${NC}"
-    echo "Please run: sudo ./setup_dpdk.sh"
+    echo -e "${RED}[FAIL] DPDK packet processor not found: $DPDK_PROCESSOR${NC}"
+    echo "Please run: sudo ./scripts/dpdk/setup.sh"
     exit 1
 fi
-echo -e "${GREEN}✅ DPDK packet processor found${NC}"
+echo -e "${GREEN}[OK] DPDK packet processor found${NC}"
 
 echo ""
 echo "Step 2: Checking hugepages..."
 HUGEPAGES=$(cat /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages)
 if [ "$HUGEPAGES" -lt 512 ]; then
-    echo -e "${YELLOW}⚠️  Only $HUGEPAGES hugepages allocated (recommend 1024+)${NC}"
+    echo -e "${YELLOW}[WARN]  Only $HUGEPAGES hugepages allocated (recommend 1024+)${NC}"
     echo "Allocating more hugepages..."
     echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
 fi
-echo -e "${GREEN}✅ Hugepages: $(cat /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages)${NC}"
+echo -e "${GREEN}[OK] Hugepages: $(cat /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages)${NC}"
 
 echo ""
 echo "Step 3: Checking NIC binding..."
@@ -75,7 +75,7 @@ elif command -v dpdk-bind-nic &> /dev/null; then
     dpdk-bind-nic status | head -20
 fi
 echo ""
-echo -e "${YELLOW}⚠️  Make sure at least one NIC is bound to DPDK (vfio-pci or igb_uio)${NC}"
+echo -e "${YELLOW}[WARN]  Make sure at least one NIC is bound to DPDK (vfio-pci or igb_uio)${NC}"
 echo "Use: sudo dpdk-bind-nic bind <PCI_ADDRESS>"
 read -p "Press Enter to continue (or Ctrl+C to abort)..."
 
@@ -103,12 +103,12 @@ echo $DPDK_PID > "$PID_DIR/dpdk_processor.pid"
 # Wait a moment and check if it's running
 sleep 3
 if ! kill -0 $DPDK_PID 2>/dev/null; then
-    echo -e "${RED}❌ DPDK processor failed to start${NC}"
+    echo -e "${RED}[FAIL] DPDK processor failed to start${NC}"
     echo "Check logs: cat $LOG_DIR/dpdk_processor.log"
     exit 1
 fi
 
-echo -e "${GREEN}✅ DPDK packet processor started (PID $DPDK_PID)${NC}"
+echo -e "${GREEN}[OK] DPDK packet processor started (PID $DPDK_PID)${NC}"
 echo "   Log: $LOG_DIR/dpdk_processor.log"
 echo "   Features: $DPDK_FEATURES_FILE"
 
@@ -135,7 +135,7 @@ else
     # Suricata in AF_PACKET mode (reads from kernel)
     # Note: DPDK processor doesn't forward to kernel by default
     # This requires KNI or similar bridge (not implemented in basic version)
-    echo -e "${YELLOW}⚠️  Suricata in AF_PACKET mode${NC}"
+    echo -e "${YELLOW}[WARN]  Suricata in AF_PACKET mode${NC}"
     echo "Note: Suricata won't see DPDK-captured packets without KNI bridge"
     echo "For full integration, build Suricata with DPDK support"
     
@@ -152,9 +152,9 @@ echo $SURICATA_PID > "$PID_DIR/suricata.pid"
 sleep 2
 
 if ! kill -0 $SURICATA_PID 2>/dev/null; then
-    echo -e "${YELLOW}⚠️  Suricata may have failed to start (check logs)${NC}"
+    echo -e "${YELLOW}[WARN]  Suricata may have failed to start (check logs)${NC}"
 else
-    echo -e "${GREEN}✅ Suricata started (PID $SURICATA_PID)${NC}"
+    echo -e "${GREEN}[OK] Suricata started (PID $SURICATA_PID)${NC}"
 fi
 echo "   Log: $LOG_DIR/suricata.log"
 echo "   Eve.json: $LOG_DIR/eve.json"
@@ -173,9 +173,9 @@ echo $INSPECTOR_PID > "$PID_DIR/packet_inspector.pid"
 sleep 2
 
 if ! kill -0 $INSPECTOR_PID 2>/dev/null; then
-    echo -e "${YELLOW}⚠️  Packet inspector may have failed to start${NC}"
+    echo -e "${YELLOW}[WARN]  Packet inspector may have failed to start${NC}"
 else
-    echo -e "${GREEN}✅ Packet Inspector started (PID $INSPECTOR_PID)${NC}"
+    echo -e "${GREEN}[OK] Packet Inspector started (PID $INSPECTOR_PID)${NC}"
 fi
 echo "   Log: $LOG_DIR/packet_inspector.log"
 
@@ -183,26 +183,26 @@ echo ""
 echo "Step 7: Starting other ML components..."
 
 # Start SOAR engine if it exists
-if [ -f "$SCRIPT_DIR/src/vajra/soar/engine.py" ]; then
+if [ -f "$ROOT_DIR/src/vajra/soar/engine.py" ]; then
     nohup python3 -m vajra.soar.engine \
         > "$LOG_DIR/soar_engine.log" 2>&1 &
     SOAR_PID=$!
     echo $SOAR_PID > "$PID_DIR/soar_engine.pid"
-    echo -e "${GREEN}✅ SOAR Engine started (PID $SOAR_PID)${NC}"
+    echo -e "${GREEN}[OK] SOAR Engine started (PID $SOAR_PID)${NC}"
 fi
 
 # Start unified logger if it exists
-if [ -f "$SCRIPT_DIR/src/vajra/pipeline/unified_logger.py" ]; then
+if [ -f "$ROOT_DIR/src/vajra/pipeline/unified_logger.py" ]; then
     nohup python3 -m vajra.pipeline.unified_logger \
         > "$LOG_DIR/unified_logger.log" 2>&1 &
     LOGGER_PID=$!
     echo $LOGGER_PID > "$PID_DIR/unified_logger.pid"
-    echo -e "${GREEN}✅ Unified Logger started (PID $LOGGER_PID)${NC}"
+    echo -e "${GREEN}[OK] Unified Logger started (PID $LOGGER_PID)${NC}"
 fi
 
 echo ""
 echo "========================================="
-echo -e "${GREEN}✅ DPDK Pipeline Started Successfully!${NC}"
+echo -e "${GREEN}[OK] DPDK Pipeline Started Successfully!${NC}"
 echo "========================================="
 echo ""
 echo "Pipeline Status:"
@@ -216,8 +216,8 @@ echo "  tail -f $LOG_DIR/packet_inspector.log"
 echo "  tail -f $LOG_DIR/eve.json"
 echo ""
 echo "Check status:"
-echo "  python3 status.py"
+echo "  python3 scripts/status.py"
 echo ""
 echo "Stop pipeline:"
-echo "  sudo ./stop_dpdk.sh"
+echo "  sudo ./scripts/dpdk/stop.sh"
 echo ""

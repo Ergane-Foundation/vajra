@@ -608,7 +608,7 @@ lcore_main(uint16_t port)
                 if (features.suspicious)
                 {
                     stats.suspicious_packets++;
-                    printf("🚨 Suspicious: %s:%u -> %s:%u [%s]\n",
+                    printf("[ALERT] Suspicious: %s:%u -> %s:%u [%s]\n",
                            features.src_ip, features.src_port,
                            features.dst_ip, features.dst_port,
                            features.protocol);

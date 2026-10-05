@@ -2,6 +2,9 @@
 # Setup script for Linux environment
 # Run this on your Linux machine before testing
 
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
+
 set -e  # Exit on error
 
 echo "=================================================="

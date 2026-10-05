@@ -15,6 +15,7 @@ def check_process(name: str) -> bool:
 
 
 def main():
+    os.chdir(Path(__file__).resolve().parent.parent)
     print("=" * 60)
     print("NGFW Pipeline Status (ML Enhanced)")
     print("=" * 60)
@@ -31,7 +32,7 @@ def main():
     ]
     
     for name, proc in services:
-        status = "✅ Running" if check_process(proc) else "❌ Stopped"
+        status = "[OK] Running" if check_process(proc) else "[FAIL] Stopped"
         print(f"  {name}: {status}")
     
     # ML Models
@@ -166,8 +167,7 @@ def main():
         print("  By Threat Level:")
         for level, count in threat_counts.items():
             if count > 0:
-                emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(level, "⚪")
-                print(f"    {emoji} {level}: {count}")
+                print(f"    {level}: {count}")
     else:
         print("  No unified events yet")
     

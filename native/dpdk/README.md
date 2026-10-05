@@ -6,12 +6,12 @@ Replaces slow Python Scapy-based packet capture with zero-copy C++ implementatio
 
 ## Features
 
-- ⚡ **Zero-copy packet processing** - Direct NIC access via DPDK PMD
-- 🚀 **10+ Gbps throughput** - Line-rate packet capture and analysis
-- 🔍 **Deep packet inspection** - Protocol parsing, payload analysis
-- 📊 **ML feature extraction** - 40+ features for threat detection
-- 🔗 **Python integration** - Seamless export to ML pipeline
-- 💾 **Low latency** - Sub-10µs packet processing
+- **Zero-copy packet processing** - Direct NIC access via DPDK PMD
+- **10+ Gbps throughput** - Line-rate packet capture and analysis
+- **Deep packet inspection** - Protocol parsing, payload analysis
+- **ML feature extraction** - 40+ features for threat detection
+- **Python integration** - Seamless export to ML pipeline
+- **Low latency** - Sub-10µs packet processing
 
 ## Architecture
 
@@ -49,7 +49,7 @@ Replaces slow Python Scapy-based packet capture with zero-copy C++ implementatio
 | `meson.build`               | Meson build configuration           |
 | `Makefile`                  | GNU Make build configuration        |
 | `dpdk_config.ini`           | Runtime configuration               |
-| `suricata_dpdk_build.sh`    | Build Suricata with DPDK support    |
+| `scripts/dpdk/build_suricata.sh`    | Build Suricata with DPDK support    |
 | `suricata_dpdk_config.yaml` | Suricata DPDK configuration example |
 
 ## Build
@@ -57,12 +57,11 @@ Replaces slow Python Scapy-based packet capture with zero-copy C++ implementatio
 ### Option 1: Meson (Recommended)
 
 ```bash
-# Install DPDK first
-cd ..
-sudo ./setup_dpdk.sh
+# Install DPDK first (from the repository root)
+sudo ./scripts/dpdk/setup.sh
 
 # Build processor
-cd dpdk
+cd native/dpdk
 PKG_CONFIG_PATH=/usr/local/lib/pkgconfig meson setup build
 cd build
 ninja

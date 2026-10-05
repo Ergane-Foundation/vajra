@@ -6,9 +6,9 @@
 # Installs all dependencies for the ML-Enhanced NGFW with Federated Learning
 #
 # Usage:
-#   sudo ./install.sh           # Full installation
-#   sudo ./install.sh --minimal # Skip Kafka, just basic deps
-#   sudo ./install.sh --help    # Show help
+#   sudo ./scripts/install.sh           # Full installation
+#   sudo ./scripts/install.sh --minimal # Skip Kafka, just basic deps
+#   sudo ./scripts/install.sh --help    # Show help
 #
 # =============================================================================
 
@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --help|-h)
-            echo "Usage: sudo ./install.sh [OPTIONS]"
+            echo "Usage: sudo ./scripts/install.sh [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --minimal  Skip Kafka installation (basic setup only)"
@@ -56,7 +56,7 @@ echo -e "${NC}"
 # =============================================================================
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}ERROR: Must run as root${NC}"
-    echo "Run: sudo ./install.sh"
+    echo "Run: sudo ./scripts/install.sh"
     exit 1
 fi
 
@@ -202,8 +202,8 @@ fi
 echo ""
 echo -e "${YELLOW}[5/7] Setting up Python virtual environment...${NC}"
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
 
 if [ ! -d "venv" ]; then
     python3 -m venv venv
@@ -232,8 +232,7 @@ mkdir -p logs logs/reports rules models fl_models
 
 # Set permissions
 chmod 755 logs rules models fl_models
-chmod +x start.sh stop.sh 2>/dev/null || true
-chmod +x start_inference_api.sh 2>/dev/null || true
+chmod +x scripts/*.sh scripts/dpdk/*.sh 2>/dev/null || true
 
 # Create .env if not exists
 if [ ! -f ".env" ]; then
@@ -345,9 +344,9 @@ echo -e "  2. Add ML models to ${CYAN}models/${NC} directory (optional)"
 echo ""
 
 echo -e "${BOLD}Quick Start:${NC}"
-echo -e "  ${CYAN}sudo ./start.sh${NC}           # Start everything (auto-detects network)"
+echo -e "  ${CYAN}sudo ./scripts/start.sh${NC}           # Start everything (auto-detects network)"
 echo -e "  ${CYAN}python3 attack_test.py${NC}    # Run attack test (auto-detects target)"
-echo -e "  ${CYAN}sudo ./stop.sh${NC}            # Stop everything"
+echo -e "  ${CYAN}sudo ./scripts/stop.sh${NC}            # Stop everything"
 echo ""
 
 echo -e "${BOLD}Federated Learning (Optional):${NC}"
