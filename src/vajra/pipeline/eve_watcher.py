@@ -5,6 +5,7 @@ No filtering, no processing - just raw eve.json data streaming
 """
 
 import asyncio
+import os
 import json
 import logging
 from pathlib import Path
@@ -26,7 +27,7 @@ app = FastAPI(title="Eve.json Live Stream", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -165,4 +166,5 @@ async def websocket_endpoint(websocket: WebSocket):
         await manager.disconnect(websocket)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    host = os.environ.get("VAJRA_API_HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=8000, log_level="info")

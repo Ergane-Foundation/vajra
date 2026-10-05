@@ -34,7 +34,7 @@ sleep 1
 echo -e "${YELLOW}Starting Inference API on port 8001...${NC}"
 
 nohup uvicorn vajra.api.inference:app \
-    --host 0.0.0.0 \
+    --host "${VAJRA_API_HOST:-127.0.0.1}" \
     --port 8001 \
     --log-level info \
     > logs/inference_api.out 2>&1 &

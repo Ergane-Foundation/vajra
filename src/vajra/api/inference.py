@@ -53,7 +53,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Configure for production
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -1001,7 +1001,7 @@ def main():
     # Run server
     uvicorn.run(
         app,
-        host="0.0.0.0",
+        host=os.environ.get("VAJRA_API_HOST", "127.0.0.1"),
         port=8001,
         log_level="info"
     )
