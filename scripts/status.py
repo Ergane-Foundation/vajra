@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NGFW Status - Check pipeline status and show blocked IPs (ML Enhanced)
+Vajra Status - Check pipeline status and show blocked IPs (ML Enhanced)
 """
 
 import os
@@ -17,7 +17,7 @@ def check_process(name: str) -> bool:
 def main():
     os.chdir(Path(__file__).resolve().parent.parent)
     print("=" * 60)
-    print("NGFW Pipeline Status (ML Enhanced)")
+    print("Vajra Pipeline Status (ML Enhanced)")
     print("=" * 60)
     
     # Process status

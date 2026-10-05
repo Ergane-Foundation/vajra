@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Resource Consumption Monitor for NGFW Pipeline
+Resource Consumption Monitor for Vajra Pipeline
 
-Monitors real-time resource consumption of the entire NGFW pipeline:
+Monitors real-time resource consumption of the entire Vajra pipeline:
 - eve_watcher
 - start_macos.sh components (Suricata, SOAR, Inference API, Unified Logger, etc.)
 - ML Models loading and inference
@@ -239,8 +239,8 @@ class ResourceMonitor:
             disk_usage_percent=disk_usage_percent
         )
     
-    def find_ngfw_processes(self) -> List[psutil.Process]:
-        """Find all NGFW-related processes"""
+    def find_vajra_processes(self) -> List[psutil.Process]:
+        """Find all Vajra-related processes"""
         processes = []
         
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
@@ -248,7 +248,7 @@ class ResourceMonitor:
                 name = proc.info['name'].lower()
                 cmdline = ' '.join(proc.info['cmdline'] or []).lower()
                 
-                # Check if process is related to NGFW
+                # Check if process is related to Vajra
                 for tracked in self.tracked_names:
                     if tracked.lower() in name or tracked.lower() in cmdline:
                         processes.append(proc)
@@ -268,9 +268,9 @@ class ResourceMonitor:
         
         # Process metrics
         processes = {}
-        ngfw_procs = self.find_ngfw_processes()
+        vajra_procs = self.find_vajra_processes()
         
-        for proc in ngfw_procs:
+        for proc in vajra_procs:
             metrics = self.get_process_metrics(proc)
             if metrics:
                 # Use a unique key combining name and pid
@@ -291,7 +291,7 @@ class ResourceMonitor:
         return snapshot
     
     def aggregate_metrics(self, processes: Dict[str, ProcessMetrics]) -> Dict[str, Any]:
-        """Aggregate metrics across all NGFW processes"""
+        """Aggregate metrics across all Vajra processes"""
         if not processes:
             return {}
         
@@ -470,7 +470,7 @@ def main():
     """Main entry point for standalone monitoring"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="NGFW Resource Monitor")
+    parser = argparse.ArgumentParser(description="Vajra Resource Monitor")
     parser.add_argument("--interval", type=float, default=1.0, help="Sampling interval in seconds")
     parser.add_argument("--duration", type=int, default=60, help="Duration to monitor in seconds")
     parser.add_argument("--output", type=str, default="output", help="Output directory")

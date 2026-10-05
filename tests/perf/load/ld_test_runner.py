@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-NGFW Load Testing (LD) Suite
+Vajra Load Testing (LD) Suite
 
-Comprehensive load testing for the NGFW pipeline to identify bottlenecks
+Comprehensive load testing for the Vajra pipeline to identify bottlenecks
 and measure performance under various traffic conditions.
 
 Tests:
@@ -88,8 +88,8 @@ def log(msg: str, level: str = "INFO"):
     print(f"{Colors.BOLD}[{timestamp}]{Colors.ENDC} {color}[{level}]{Colors.ENDC} {msg}")
 
 
-class NGFWPipelineManager:
-    """Manages NGFW pipeline for load testing"""
+class VajraPipelineManager:
+    """Manages Vajra pipeline for load testing"""
     
     def __init__(self):
         self.eve_watcher_proc = None
@@ -110,8 +110,8 @@ class NGFWPipelineManager:
         return "python3"
     
     def start_pipeline(self) -> bool:
-        """Start the NGFW pipeline"""
-        log("Starting NGFW pipeline...")
+        """Start the Vajra pipeline"""
+        log("Starting Vajra pipeline...")
         
         try:
             # Start eve_watcher
@@ -319,7 +319,7 @@ def generate_visualizations(results: List[Dict], output_dir: Path, timestamp: st
     
     # Create dashboard
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    fig.suptitle('NGFW Load Testing Dashboard', fontsize=16, fontweight='bold')
+    fig.suptitle('Vajra Load Testing Dashboard', fontsize=16, fontweight='bold')
     
     # Extract data
     scenarios = [r['scenario'] for r in results if 'scenario' in r]
@@ -439,12 +439,12 @@ def run_load_tests():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     log("="*70, "HEADER")
-    log("NGFW Load Testing Suite", "HEADER")
+    log("Vajra Load Testing Suite", "HEADER")
     log("="*70, "HEADER")
     log(f"Test ID: {timestamp}")
     
     # Start pipeline
-    pipeline = NGFWPipelineManager()
+    pipeline = VajraPipelineManager()
     
     try:
         if not pipeline.start_pipeline():

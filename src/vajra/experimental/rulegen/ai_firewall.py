@@ -25,7 +25,7 @@ Security Features:
 - Safe rule rollback mechanism
 - Zero-downtime rule reload (suricatasc)
 
-Author: NGFW Security Team
+Author: Vajra Security Team
 License: MIT
 """
 

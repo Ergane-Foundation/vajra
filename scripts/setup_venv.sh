@@ -8,7 +8,7 @@ cd "$ROOT_DIR"
 set -e  # Exit on error
 
 echo "=================================================="
-echo "L5 NGFW - Linux Environment Setup"
+echo "Vajra - Linux Environment Setup"
 echo "=================================================="
 
 # Check Python version

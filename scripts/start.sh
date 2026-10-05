@@ -1,7 +1,7 @@
 #!/bin/bash
-# NGFW Complete Startup Script
+# Vajra Complete Startup Script
 # 
-# This script starts the ENTIRE NGFW pipeline in a single command:
+# This script starts the ENTIRE Vajra pipeline in a single command:
 #   1. System Setup (install.sh, setup_venv.sh)
 #   2. Python Virtual Environment Setup
 #   3. Suricata IDS/IPS (NFQUEUE mode)
@@ -128,7 +128,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --help       Show this help message"
             echo ""
             echo "Environment Variables (optional - all are auto-detected):"
-            echo "  NGFW_INTERFACE      Network interface (auto-detected if not set)"
+            echo "  VAJRA_INTERFACE     Network interface (auto-detected if not set)"
             echo "  HTTP_PORT           HTTP server port (default: 80)"
             echo "  ML_MODELS_DIR       ML models directory (default: models)"
             echo ""
@@ -247,8 +247,8 @@ auto_detect_ip() {
 }
 
 # Use environment variable if set, otherwise auto-detect
-if [ -n "$NGFW_INTERFACE" ]; then
-    INTERFACE="$NGFW_INTERFACE"
+if [ -n "$VAJRA_INTERFACE" ]; then
+    INTERFACE="$VAJRA_INTERFACE"
     echo -e "${BLUE}Using environment interface: $INTERFACE${NC}"
 else
     INTERFACE=$(auto_detect_interface)
@@ -702,7 +702,7 @@ fi
 echo ""
 echo -e "${BOLD}${GREEN}"
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
-echo "║                     NGFW IPS MODE ACTIVE                              ║"
+echo "║                     VAJRA IPS MODE ACTIVE                             ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 

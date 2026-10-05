@@ -1,4 +1,4 @@
-# NGFW Linux Pipeline - Python Requirements
+# Vajra - Python Requirements
 
 # Kafka
 confluent-kafka>=2.3.0

@@ -271,7 +271,7 @@ class FLServerManager:
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description="FL Server Manager for NGFW")
+    parser = argparse.ArgumentParser(description="FL Server Manager for Vajra")
     parser.add_argument('--all', action='store_true', help='Start all FL servers')
     parser.add_argument('--model', type=str, choices=['sqli', 'ddos', 'xss', 'general'],
                         help='Model type to start server for')

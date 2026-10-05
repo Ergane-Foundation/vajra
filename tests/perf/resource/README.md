@@ -1,10 +1,10 @@
-# NGFW Resource Consumption (RC) Testing
+# Vajra Resource Consumption (RC) Testing
 
-Comprehensive resource consumption testing framework for the Next-Generation Firewall (NGFW) pipeline.
+Comprehensive resource consumption testing framework for the Next-Generation Firewall (Vajra) pipeline.
 
 ## Overview
 
-This testing suite monitors and analyzes the resource consumption of the entire NGFW pipeline including:
+This testing suite monitors and analyzes the resource consumption of the entire Vajra pipeline including:
 
 ### Pipeline Components Tested
 
@@ -26,7 +26,7 @@ This testing suite monitors and analyzes the resource consumption of the entire 
 - **File Descriptors**: Open file handles
 - **Disk I/O**: Read/Write operations in MB
 - **Network I/O**: Sent/Received data in MB
-- **Process Count**: Number of active NGFW processes
+- **Process Count**: Number of active Vajra processes
 
 ## Quick Start
 
@@ -36,7 +36,7 @@ This testing suite monitors and analyzes the resource consumption of the entire 
 2. **Python 3.7+** with packages:
    - `psutil` (required)
    - `matplotlib` (optional, for visualizations)
-3. **NGFW Pipeline**: All components must be available in parent directory
+3. **Vajra Pipeline**: All components must be available in parent directory
 
 ### Installation
 

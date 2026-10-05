@@ -1,7 +1,7 @@
 #!/bin/bash
-# NGFW Complete Shutdown Script - macOS Version
+# Vajra Complete Shutdown Script - macOS Version
 #
-# This script stops all NGFW services on macOS
+# This script stops all Vajra services on macOS
 #
 # Usage:
 #   sudo ./scripts/stop_macos.sh              # Stop everything
@@ -46,7 +46,7 @@ done
 
 echo -e "${BOLD}${YELLOW}"
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
-echo "║               NGFW PIPELINE - SHUTTING DOWN (macOS)                   ║"
+echo "║               VAJRA PIPELINE - SHUTTING DOWN (macOS)                  ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -154,7 +154,7 @@ fi
 echo ""
 echo -e "${BOLD}${GREEN}"
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
-echo "║                  NGFW PIPELINE STOPPED (macOS)                        ║"
+echo "║                  VAJRA PIPELINE STOPPED (macOS)                       ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 

@@ -52,7 +52,7 @@ class KafkaBridge:
         if KAFKA_AVAILABLE:
             self.producer = Producer({
                 'bootstrap.servers': kafka_broker,
-                'client.id': 'ngfw-kafka-bridge',
+                'client.id': 'vajra-kafka-bridge',
                 'acks': 'all',
                 'retries': 3,
                 'retry.backoff.ms': 500,
@@ -190,7 +190,7 @@ class KafkaBridge:
     def run(self):
         """Main run loop"""
         logger.info("=" * 50)
-        logger.info("NGFW Kafka Bridge Starting")
+        logger.info("Vajra Kafka Bridge Starting")
         logger.info(f"  Eve file: {self.eve_path}")
         logger.info(f"  Kafka topic: {self.topic}")
         logger.info("=" * 50)

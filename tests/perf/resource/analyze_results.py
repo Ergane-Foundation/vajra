@@ -162,14 +162,14 @@ def generate_advanced_visualizations(snapshots: List[Dict], output_dir: Path, te
     fig = plt.figure(figsize=(18, 12))
     gs = fig.add_gridspec(3, 3, hspace=0.3, wspace=0.3)
     
-    # 1. CPU Usage (NGFW vs System)
+    # 1. CPU Usage (Vajra vs System)
     ax1 = fig.add_subplot(gs[0, :2])
-    ax1.plot(times, cpu_vals, label='NGFW Processes', color='#e74c3c', linewidth=2)
+    ax1.plot(times, cpu_vals, label='Vajra Processes', color='#e74c3c', linewidth=2)
     ax1.plot(times, sys_cpu, label='System Total', color='#95a5a6', linewidth=1.5, linestyle='--')
     ax1.fill_between(times, cpu_vals, alpha=0.3, color='#e74c3c')
     ax1.set_xlabel('Time (seconds)')
     ax1.set_ylabel('CPU Usage (%)')
-    ax1.set_title('CPU Usage: NGFW vs System Total')
+    ax1.set_title('CPU Usage: Vajra vs System Total')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
     
@@ -181,15 +181,15 @@ def generate_advanced_visualizations(snapshots: List[Dict], output_dir: Path, te
     ax2.set_title('CPU Distribution')
     ax2.grid(True, alpha=0.3, axis='y')
     
-    # 3. Memory Usage (NGFW vs System)
+    # 3. Memory Usage (Vajra vs System)
     ax3 = fig.add_subplot(gs[1, :2])
-    ax3.plot(times, mem_vals, label='NGFW Processes', color='#3498db', linewidth=2)
+    ax3.plot(times, mem_vals, label='Vajra Processes', color='#3498db', linewidth=2)
     ax3.plot(times, sys_mem_used, label='System Total', color='#95a5a6', linewidth=1.5, linestyle='--')
     ax3.fill_between(times, mem_vals, alpha=0.3, color='#3498db')
     ax3.axhline(y=sys_mem_total, color='red', linestyle=':', label=f'Total RAM ({sys_mem_total:.0f}MB)')
     ax3.set_xlabel('Time (seconds)')
     ax3.set_ylabel('Memory (MB)')
-    ax3.set_title('Memory Usage: NGFW vs System Total')
+    ax3.set_title('Memory Usage: Vajra vs System Total')
     ax3.legend()
     ax3.grid(True, alpha=0.3)
     
@@ -251,7 +251,7 @@ def generate_advanced_visualizations(snapshots: List[Dict], output_dir: Path, te
     
     ax7.set_title('Summary Statistics', pad=20)
     
-    plt.suptitle(f'NGFW Resource Consumption Analysis - {test_id}', 
+    plt.suptitle(f'Vajra Resource Consumption Analysis - {test_id}', 
                  fontsize=16, fontweight='bold', y=0.98)
     
     # Save

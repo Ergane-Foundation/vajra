@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NGFW Load Generator
+Vajra Load Generator
 
 Simulates various types of network traffic to test firewall performance:
 - HTTP/HTTPS traffic
@@ -419,7 +419,7 @@ def main():
     """Test the load generators"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="NGFW Load Generator")
+    parser = argparse.ArgumentParser(description="Vajra Load Generator")
     parser.add_argument("--target", default="127.0.0.1", help="Target IP")
     parser.add_argument("--port", type=int, default=8080, help="Target port")
     parser.add_argument("--type", choices=["http", "tcp", "udp", "attack"], default="http")

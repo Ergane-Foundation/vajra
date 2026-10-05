@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start DPDK-based NGFW Pipeline
+# Start DPDK-based Vajra Pipeline
 # Launches DPDK packet processor, Suricata (DPDK mode), and Python ML components
 
 set -e
@@ -11,13 +11,13 @@ export PYTHONPATH="$ROOT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
 # Configuration
 DPDK_PROCESSOR="/usr/local/bin/dpdk_packet_processor"
 DPDK_FEATURES_FILE="/tmp/dpdk_features.json"
-DPDK_EAL_ARGS="-l 0-3 -n 4 --proc-type=primary --file-prefix=ngfw"
+DPDK_EAL_ARGS="-l 0-3 -n 4 --proc-type=primary --file-prefix=vajra"
 DPDK_PORT=0
 
 SURICATA_YAML="/etc/suricata/suricata.yaml"
 SURICATA_DPDK_MODE=false  # Set to true if Suricata built with DPDK
 
-PID_DIR="/var/run/ngfw"
+PID_DIR="/var/run/vajra"
 LOG_DIR="$ROOT_DIR/logs"
 
 # Colors
@@ -27,7 +27,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo "========================================="
-echo "Starting DPDK-based NGFW Pipeline"
+echo "Starting DPDK-based Vajra Pipeline"
 echo "========================================="
 
 # Check if running as root

@@ -1,4 +1,4 @@
-# NGFW RC Testing - Quick Reference
+# Vajra RC Testing - Quick Reference
 
 ## Quick Start
 

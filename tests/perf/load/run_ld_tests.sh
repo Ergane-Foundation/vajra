@@ -1,5 +1,5 @@
 #!/bin/bash
-# NGFW Load Testing (LD) Script
+# Vajra Load Testing (LD) Script
 #
 # Performs comprehensive load testing to identify bottlenecks:
 # - Baseline, Normal, Peak, Stress scenarios
@@ -55,7 +55,7 @@ clear
 echo -e "${BOLD}${CYAN}"
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
 echo "║                                                                       ║"
-echo "║                 NGFW Load Testing (LD) Suite                          ║"
+echo "║                 Vajra Load Testing (LD) Suite                         ║"
 echo "║                                                                       ║"
 echo "║          Bottleneck Detection & Performance Analysis                 ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"

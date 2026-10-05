@@ -1,8 +1,8 @@
 #!/bin/bash
-# NGFW Resource Consumption (RC) Testing Script
+# Vajra Resource Consumption (RC) Testing Script
 # 
 # This script automates the entire RC testing process:
-# 1. Starts the NGFW pipeline (eve_watcher + start_macos.sh)
+# 1. Starts the Vajra pipeline (eve_watcher + start_macos.sh)
 # 2. Monitors resource consumption
 # 3. Generates reports and visualizations
 #
@@ -57,7 +57,7 @@ clear
 echo -e "${BOLD}${CYAN}"
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
 echo "║                                                                       ║"
-echo "║              NGFW Resource Consumption (RC) Testing                  ║"
+echo "║              VAJRA Resource Consumption (RC) Testing                 ║"
 echo "║                                                                       ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"

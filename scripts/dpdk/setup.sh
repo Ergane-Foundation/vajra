@@ -1,11 +1,11 @@
 #!/bin/bash
-# DPDK Setup Script for NGFW Linux Pipeline
+# DPDK Setup Script for Vajra
 # Installs DPDK, configures hugepages, and builds packet processor
 
 set -e
 
 echo "====================================="
-echo "DPDK Setup for NGFW"
+echo "DPDK Setup for Vajra"
 echo "====================================="
 
 # Check if running as root

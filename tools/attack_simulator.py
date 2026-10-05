@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-NGFW Attack Test Script - Tests the pipeline with various attack simulations
+Vajra Attack Test Script - Tests the pipeline with various attack simulations
 
-This script sends attack traffic to test if the NGFW pipeline detects and blocks it.
+This script sends attack traffic to test if the Vajra pipeline detects and blocks it.
 Supports both network attacks and ML-based insider threat detection testing.
 """
 
@@ -61,7 +61,7 @@ except ImportError as e:
 
 
 class AttackTester:
-    """Simple attack tester for NGFW pipeline"""
+    """Simple attack tester for Vajra pipeline"""
     
     def __init__(self, target: str, dry_run: bool = False):
         self.target = target
@@ -788,7 +788,7 @@ class AttackTester:
     def run_all(self, safe_mode: bool = True):
         """Run all tests"""
         print("=" * 50)
-        print("NGFW Attack Test Suite")
+        print("Vajra Attack Test Suite")
         print("=" * 50)
         print(f"Target: {self.target}")
         print(f"Mode: {'SAFE (web only)' if safe_mode else 'FULL (all attacks)'}")
@@ -889,7 +889,7 @@ def auto_detect_target_ip():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="NGFW Attack Tester (Network + ML + UBA)",
+        description="Vajra Attack Tester (Network + ML + UBA)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -943,7 +943,7 @@ Note: If --target is not specified, the local IP will be auto-detected.
     if args.ml:
         # ML Testing mode
         print("=" * 60)
-        print("NGFW ML Insider Threat Detection Test")
+        print("Vajra ML Insider Threat Detection Test")
         print("=" * 60)
         print("Using CERT Dataset Scenarios")
         print("=" * 60)
@@ -965,7 +965,7 @@ Note: If --target is not specified, the local IP will be auto-detected.
     elif args.uba:
         # UBA Testing mode
         print("=" * 60)
-        print("NGFW UBA User Behavior Analytics Test")
+        print("Vajra UBA User Behavior Analytics Test")
         print("=" * 60)
         print("Detecting Insider Threats via Behavior Analysis")
         print("=" * 60)
@@ -981,7 +981,7 @@ Note: If --target is not specified, the local IP will be auto-detected.
     elif args.eta:
         # ETA Testing mode
         print("=" * 60)
-        print("NGFW ETA Encrypted Traffic Analysis Test")
+        print("Vajra ETA Encrypted Traffic Analysis Test")
         print("=" * 60)
         print("Detecting Threats in Encrypted Network Flows")
         print("=" * 60)
@@ -996,7 +996,7 @@ Note: If --target is not specified, the local IP will be auto-detected.
     
     elif individual:
         print("=" * 50)
-        print("NGFW Attack Test - Individual Tests")
+        print("Vajra Attack Test - Individual Tests")
         print("=" * 50)
         print(f"Target: {target}")
         

@@ -1,5 +1,5 @@
 #!/bin/bash
-# NGFW Complete Shutdown Script
+# Vajra Complete Shutdown Script
 #
 # IMPORTANT: This restores normal networking by removing NFQUEUE rules
 #
@@ -46,7 +46,7 @@ done
 
 echo -e "${BOLD}${YELLOW}"
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
-echo "║                    NGFW PIPELINE - SHUTTING DOWN                      ║"
+echo "║                    VAJRA PIPELINE - SHUTTING DOWN                     ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -161,7 +161,7 @@ fi
 echo ""
 echo -e "${BOLD}${GREEN}"
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
-echo "║               NGFW PIPELINE STOPPED - NETWORK RESTORED                ║"
+echo "║               VAJRA PIPELINE STOPPED - NETWORK RESTORED               ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 

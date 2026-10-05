@@ -189,7 +189,7 @@ class FirewallManager:
                 
             elif self.backend == "iptables":
                 # iptables - add to INPUT and OUTPUT
-                cmd1 = ["iptables", "-A", "INPUT", "-s", ip, "-j", "DROP", "-m", "comment", "--comment", f"NGFW: {reason[:50]}"]
+                cmd1 = ["iptables", "-A", "INPUT", "-s", ip, "-j", "DROP", "-m", "comment", "--comment", f"Vajra: {reason[:50]}"]
                 cmd2 = ["iptables", "-A", "OUTPUT", "-d", ip, "-j", "DROP"]
                 
                 r1 = subprocess.run(cmd1, capture_output=True, timeout=5)
@@ -544,7 +544,7 @@ class SOAREngine:
         
         # Block specific attack types regardless of severity
         block_keywords = [
-            "ngfw", "sql injection", "xss", "command injection",
+            "vajra", "sql injection", "xss", "command injection",
             "traversal", "brute force", "ddos", "flood", "c2",
             "exfil", "spoof", "scan"
         ]
@@ -782,7 +782,7 @@ class SOAREngine:
     def run(self):
         """Main run method - auto-detect mode"""
         logger.info("=" * 50)
-        logger.info("NGFW SOAR Engine Starting (ML Enhanced)")
+        logger.info("Vajra SOAR Engine Starting (ML Enhanced)")
         logger.info(f"  Firewall: {self.firewall.backend}")
         logger.info(f"  Kafka: {'available' if KAFKA_AVAILABLE and self.consumer else 'not available'}")
         logger.info(f"  ML Models: {'enabled' if self.ml_enabled else 'disabled'}")

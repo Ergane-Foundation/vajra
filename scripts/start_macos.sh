@@ -1,7 +1,7 @@
 #!/bin/bash
-# NGFW Complete Startup Script - macOS Version
+# Vajra Complete Startup Script - macOS Version
 # 
-# This script starts the NGFW pipeline optimized for macOS:
+# This script starts the Vajra pipeline optimized for macOS:
 #   1. System Setup (install.sh, setup_venv.sh)
 #   2. Python Virtual Environment Setup
 #   3. Suricata IDS (AF_PACKET mode - NFQUEUE not available on macOS)
@@ -130,7 +130,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --help       Show this help message"
             echo ""
             echo "Environment Variables (optional - all are auto-detected):"
-            echo "  NGFW_INTERFACE      Network interface (auto-detected if not set)"
+            echo "  VAJRA_INTERFACE     Network interface (auto-detected if not set)"
             echo "  HTTP_PORT           HTTP server port (default: 8080)"
             echo "  ML_MODELS_DIR       ML models directory (default: models)"
             echo ""
@@ -247,8 +247,8 @@ auto_detect_ip_macos() {
 }
 
 # Use environment variable if set, otherwise auto-detect
-if [ -n "$NGFW_INTERFACE" ]; then
-    INTERFACE="$NGFW_INTERFACE"
+if [ -n "$VAJRA_INTERFACE" ]; then
+    INTERFACE="$VAJRA_INTERFACE"
     echo -e "${BLUE}Using environment interface: $INTERFACE${NC}"
 else
     INTERFACE=$(auto_detect_interface_macos)
@@ -695,7 +695,7 @@ fi
 echo ""
 echo -e "${BOLD}${GREEN}"
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
-echo "║                     NGFW IDS MODE ACTIVE (macOS)                      ║"
+echo "║                     VAJRA IDS MODE ACTIVE (macOS)                     ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 

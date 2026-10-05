@@ -328,4 +328,4 @@ sudo dpdk_packet_processor -l 0-3 -n 4 --log-level=8 --
 
 ## License
 
-Part of NGFW Linux Pipeline. See main LICENSE file.
+Part of Vajra. See the LICENSE file at the repository root.

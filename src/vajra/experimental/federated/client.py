@@ -339,8 +339,8 @@ class LocalTrainer:
 
 # Flower Client
 
-class NGFWFlowerClient(fl.client.NumPyClient):
-    """Flower client for NGFW federated learning"""
+class VajraFlowerClient(fl.client.NumPyClient):
+    """Flower client for Vajra federated learning"""
     
     def __init__(self, model_type: str, trainer: LocalTrainer, X: np.ndarray, y: np.ndarray):
         self.model_type = model_type
@@ -451,7 +451,7 @@ class FLClientManager:
             logger.info(f"Connecting to FL server: {server_address}")
             
             # Create FL client
-            client = NGFWFlowerClient(model_type, trainer, X, y)
+            client = VajraFlowerClient(model_type, trainer, X, y)
             
             # Start FL client
             fl.client.start_numpy_client(
@@ -474,7 +474,7 @@ class FLClientManager:
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description="FL Client Manager for NGFW")
+    parser = argparse.ArgumentParser(description="FL Client Manager for Vajra")
     parser.add_argument('--all', action='store_true', help='Train all models')
     parser.add_argument('--model', type=str, choices=['sqli', 'ddos', 'xss', 'general'],
                         help='Specific model to train')

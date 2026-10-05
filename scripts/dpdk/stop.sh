@@ -1,8 +1,8 @@
 #!/bin/bash
-# Stop DPDK-based NGFW Pipeline
+# Stop DPDK-based Vajra Pipeline
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PID_DIR="/var/run/ngfw"
+PID_DIR="/var/run/vajra"
 
 # Colors
 RED='\033[0;31m'
@@ -11,7 +11,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo "========================================="
-echo "Stopping DPDK-based NGFW Pipeline"
+echo "Stopping DPDK-based Vajra Pipeline"
 echo "========================================="
 
 # Check if running as root

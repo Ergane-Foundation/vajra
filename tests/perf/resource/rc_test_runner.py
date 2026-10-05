@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-NGFW Resource Consumption (RC) Testing Suite
+Vajra Resource Consumption (RC) Testing Suite
 
 This script performs comprehensive resource consumption testing of the entire
-NGFW pipeline including:
+Vajra pipeline including:
 - eve_watcher (WebSocket streaming)
 - Suricata IDS
 - SOAR Engine (with ML models)
@@ -85,8 +85,8 @@ def log(msg: str, level: str = "INFO"):
     print(f"{Colors.BOLD}[{timestamp}]{Colors.ENDC} {color}[{level}]{Colors.ENDC} {msg}")
 
 
-class NGFWPipelineManager:
-    """Manages the NGFW pipeline lifecycle"""
+class VajraPipelineManager:
+    """Manages the Vajra pipeline lifecycle"""
     
     def __init__(self):
         self.eve_watcher_proc = None
@@ -140,7 +140,7 @@ class NGFWPipelineManager:
     
     def start_macos_pipeline(self) -> bool:
         """Start the main pipeline with start_macos.sh"""
-        log("Starting main NGFW pipeline (start_macos.sh)...")
+        log("Starting main Vajra pipeline (start_macos.sh)...")
         
         try:
             start_script = ROOT_DIR / "scripts" / "start_macos.sh"
@@ -164,7 +164,7 @@ class NGFWPipelineManager:
             
             # Check if key processes are running
             if self.check_pipeline_health():
-                log("NGFW pipeline started successfully", "SUCCESS")
+                log("Vajra pipeline started successfully", "SUCCESS")
                 return True
             else:
                 log("Pipeline health check failed", "WARNING")
@@ -196,7 +196,7 @@ class NGFWPipelineManager:
     
     def stop_pipeline(self):
         """Stop all pipeline components"""
-        log("Stopping NGFW pipeline...")
+        log("Stopping Vajra pipeline...")
         
         # Stop start_macos.sh processes
         try:
@@ -324,7 +324,7 @@ def generate_visualizations(monitor: ResourceMonitor, output_dir: Path, timestam
     
     # Create dashboard with 4 subplots
     fig, axes = plt.subplots(2, 2, figsize=(16, 10))
-    fig.suptitle('NGFW Resource Consumption Dashboard', fontsize=16, fontweight='bold')
+    fig.suptitle('Vajra Resource Consumption Dashboard', fontsize=16, fontweight='bold')
     
     # Plot 1: CPU Usage Over Time
     ax1 = axes[0, 0]
@@ -371,7 +371,7 @@ def generate_visualizations(monitor: ResourceMonitor, output_dir: Path, timestam
     ax4.plot(elapsed_times, proc_counts, color='#9b59b6', linewidth=2, marker='s', markersize=3)
     ax4.set_xlabel('Time (seconds)')
     ax4.set_ylabel('Process Count')
-    ax4.set_title('NGFW Process Count Over Time')
+    ax4.set_title('Vajra Process Count Over Time')
     ax4.grid(True, alpha=0.3)
     
     plt.tight_layout()
@@ -433,13 +433,13 @@ def run_rc_test():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     log("="*70, "HEADER")
-    log("NGFW Resource Consumption (RC) Testing Suite", "HEADER")
+    log("Vajra Resource Consumption (RC) Testing Suite", "HEADER")
     log("="*70, "HEADER")
     log(f"Test ID: {timestamp}")
     log(f"Output Directory: {OUTPUT_DIR}")
     
     # Initialize components
-    pipeline = NGFWPipelineManager()
+    pipeline = VajraPipelineManager()
     monitor = ResourceMonitor(interval=1.0, output_dir=str(OUTPUT_DIR))
     simulator = LoadSimulator()
     
@@ -459,7 +459,7 @@ def run_rc_test():
         time.sleep(WARMUP_DURATION)
         
         # Phase 2: Start main pipeline
-        log("\n[Phase 2/5] Starting NGFW pipeline...", "HEADER")
+        log("\n[Phase 2/5] Starting Vajra pipeline...", "HEADER")
         if not pipeline.start_macos_pipeline():
             log("Failed to start pipeline", "ERROR")
             return

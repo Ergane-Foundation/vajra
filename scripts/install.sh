@@ -1,7 +1,7 @@
 #!/bin/bash
-# NGFW Complete Installation Script
+# Vajra Complete Installation Script
 #
-# Installs all dependencies for the ML-Enhanced NGFW with Federated Learning
+# Installs all dependencies for the Vajra
 #
 # Usage:
 #   sudo ./scripts/install.sh           # Full installation
@@ -44,7 +44,7 @@ done
 
 echo -e "${BOLD}${CYAN}"
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
-echo "║           NGFW INSTALLATION - ML Enhanced with Federated Learning     ║"
+echo "║           VAJRA INSTALLATION                                          ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 

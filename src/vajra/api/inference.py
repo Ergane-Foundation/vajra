@@ -44,8 +44,8 @@ logger = logging.getLogger("inference_api")
 
 # Create FastAPI app
 app = FastAPI(
-    title="NGFW ML Inference API",
-    description="Federated Learning Model Serving for NGFW",
+    title="Vajra ML Inference API",
+    description="Model serving for Vajra",
     version="1.0.0"
 )
 

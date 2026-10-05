@@ -294,7 +294,7 @@ def example_usage():
         'dest_port': 80,
         'proto': 'TCP',
         'alert': {
-            'signature': 'NGFW DROP SQL Injection Attempt',
+            'signature': 'VAJRA DROP SQL Injection Attempt',
             'severity': 1
         },
         'payload': "SELECT * FROM users WHERE id='1' OR '1'='1'",
