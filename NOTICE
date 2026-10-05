@@ -1,0 +1,9 @@
+Vajra
+Copyright 2025-2026 The Vajra Authors
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full text.
+
+Vajra runs Suricata (GPL-2.0) as a separate program and does not include
+its source code. The optional "dpi" extra installs Scapy (GPL-2.0), which
+is not part of the default installation.

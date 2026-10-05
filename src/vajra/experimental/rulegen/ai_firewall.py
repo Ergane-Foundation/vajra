@@ -24,9 +24,6 @@ Security Features:
 - Comprehensive logging and audit trails
 - Safe rule rollback mechanism
 - Zero-downtime rule reload (suricatasc)
-
-Author: Vajra Security Team
-License: MIT
 """
 
 import os
