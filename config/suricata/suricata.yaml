@@ -77,8 +77,8 @@ default-rule-path: .
 rule-files:
   - rules/local.rules
 
-classification-file: classification.config
-reference-config-file: reference.config
+classification-file: config/suricata/classification.config
+reference-config-file: config/suricata/reference.config
 
 # App layer protocols
 app-layer:

@@ -341,7 +341,7 @@ echo -e "${GREEN}  ✓ NFQUEUE rules configured${NC}"
 echo ""
 echo -e "${YELLOW}[1.5/8] Generating suricata.yaml with detected interface...${NC}"
 
-cat > "$SCRIPT_DIR/suricata_runtime.yaml" << EOF
+cat > "$SCRIPT_DIR/config/suricata/suricata.runtime.yaml" << EOF
 %YAML 1.1
 ---
 # Suricata IPS Mode Configuration - AUTO-GENERATED (Linux)
@@ -437,8 +437,8 @@ default-rule-path: $SCRIPT_DIR
 rule-files:
   - $RULES_DIR/local.rules
 
-classification-file: $SCRIPT_DIR/classification.config
-reference-config-file: $SCRIPT_DIR/reference.config
+classification-file: $SCRIPT_DIR/config/suricata/classification.config
+reference-config-file: $SCRIPT_DIR/config/suricata/reference.config
 app-layer:
   protocols:
     http:
@@ -519,7 +519,7 @@ unix-command:
   enabled: no
 EOF
 
-echo -e "${GREEN}  ✓ Generated suricata_runtime.yaml for interface: $INTERFACE${NC}"
+echo -e "${GREEN}  ✓ Generated config/suricata/suricata.runtime.yaml for interface: $INTERFACE${NC}"
 
 # =============================================================================
 # Step 2: Start Suricata IPS
@@ -532,8 +532,8 @@ echo -e "${YELLOW}[2/8] Starting Suricata in IPS mode (NFQUEUE)...${NC}"
 echo "[]" > "$LOGS_DIR/eve.json" 2>/dev/null || true
 
 # Start Suricata in NFQUEUE (IPS) mode with runtime config (absolute paths)
-echo -e "${BLUE}  Starting: suricata -c suricata_runtime.yaml -q 0${NC}"
-suricata -c "$SCRIPT_DIR/suricata_runtime.yaml" -q 0 -l "$LOGS_DIR" -vv -D --pidfile "$LOGS_DIR/suricata.pid" 2>&1 | tee "$LOGS_DIR/suricata_startup.log"
+echo -e "${BLUE}  Starting: suricata -c config/suricata/suricata.runtime.yaml -q 0${NC}"
+suricata -c "$SCRIPT_DIR/config/suricata/suricata.runtime.yaml" -q 0 -l "$LOGS_DIR" -vv -D --pidfile "$LOGS_DIR/suricata.pid" 2>&1 | tee "$LOGS_DIR/suricata_startup.log"
 
 sleep 4
 
