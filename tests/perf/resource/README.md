@@ -173,19 +173,19 @@ All detailed logs are saved in `tests/perf/resource/logs/`:
 
 ### Performance Indicators
 
-✅ **Good Performance**:
+**Good Performance**:
 - CPU < 60% under load
 - Memory growth < 50% during test
 - No process crashes
 - Stable thread count
 
-⚠️ **Warning Signs**:
+**Warning Signs**:
 - CPU > 80% sustained
 - Memory growing continuously (leak)
 - Increasing file descriptors
 - Process count fluctuating
 
-❌ **Critical Issues**:
+**Critical Issues**:
 - CPU pinned at 100%
 - Memory exhaustion (swap usage)
 - Process crashes
@@ -384,7 +384,7 @@ To add new metrics:
 
 ## License
 
-Part of the SIH L5 NGFW project.
+See the repository root.
 
 ## Support
 

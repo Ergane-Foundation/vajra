@@ -1,32 +1,32 @@
 # NGFW RC Testing - Quick Reference
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 cd tests/perf/resource
 sudo ./run_rc_tests.sh
 ```
 
-## 📋 What Gets Tested
+## What Gets Tested
 
 ### Pipeline Components
-- ✅ **eve_watcher** - Real-time event streaming (WebSocket)
-- ✅ **Suricata IDS** - Network packet analysis
-- ✅ **SOAR Engine** - ML-powered threat response
-- ✅ **Packet Inspector** - Deep packet inspection
-- ✅ **Inference API** - Federated Learning (FL) models
-- ✅ **Unified Logger** - Centralized logging
-- ✅ **ML Models** - Multiple threat detection models
+- **eve_watcher** - Real-time event streaming (WebSocket)
+- **Suricata IDS** - Network packet analysis
+- **SOAR Engine** - ML-powered threat response
+- **Packet Inspector** - Deep packet inspection
+- **Inference API** - Federated Learning (FL) models
+- **Unified Logger** - Centralized logging
+- **ML Models** - Multiple threat detection models
 
 ### Resources Monitored
-- 📊 **CPU Usage** - Per-process and total
-- 💾 **Memory (RAM)** - RSS and VMS metrics
-- 🔧 **Threads** - Thread count per component
-- 📁 **File Descriptors** - Open file handles
-- 💿 **Disk I/O** - Read/Write operations
-- 🌐 **Network I/O** - Sent/Received data
+- **CPU Usage** - Per-process and total
+- **Memory (RAM)** - RSS and VMS metrics
+- **Threads** - Thread count per component
+- **File Descriptors** - Open file handles
+- **Disk I/O** - Read/Write operations
+- **Network I/O** - Sent/Received data
 
-## 🎯 Test Phases
+## Test Phases
 
 1. **Warmup** (10s) - Start eve_watcher
 2. **Pipeline Start** (15s) - Launch all components via start_macos.sh
@@ -36,7 +36,7 @@ sudo ./run_rc_tests.sh
 
 **Total Duration**: ~2 minutes
 
-## 📊 Output Files
+## Output Files
 
 ### Location
 ```
@@ -87,27 +87,27 @@ tests/perf/resource/output/
 }
 ```
 
-## 📈 Interpreting Results
+## Interpreting Results
 
-### ✅ Good Performance
+### Good Performance
 - CPU < 60% under load
 - Memory < 1GB
 - Stable process/thread count
 - No crashes
 
-### ⚠️ Warning Signs
+### Warning Signs
 - CPU > 80% sustained
 - Memory growing continuously
 - Increasing file descriptors
 - Process count fluctuating
 
-### ❌ Critical Issues
+### Critical Issues
 - CPU pinned at 100%
 - Memory exhaustion
 - Process crashes
 - File descriptor limit reached
 
-## 🔧 Common Commands
+## Common Commands
 
 ### Run Standard Test
 ```bash
@@ -141,7 +141,7 @@ cat output/rc_report_*.json | jq '.summary.memory_mb.max'
 cat output/rc_report_*.json | jq '.phases.baseline.cpu_percent'
 ```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Error: "psutil not installed"
 ```bash
@@ -183,7 +183,7 @@ ps aux | grep -E "suricata|soar_engine|eve_watcher|unified_logger"
 # Give pipeline more time to start (increase WARMUP_DURATION in rc_test_runner.py)
 ```
 
-## 🔬 Advanced Usage
+## Advanced Usage
 
 ### Monitor Existing Pipeline
 If pipeline is already running, use standalone monitor:
@@ -216,7 +216,7 @@ while true; do
 done
 ```
 
-## 📊 Expected Values (Reference)
+## Expected Values (Reference)
 
 | Component | CPU (Idle) | CPU (Load) | Memory |
 |-----------|------------|------------|--------|
@@ -230,7 +230,7 @@ done
 
 *Note: Values vary based on system specs and traffic volume*
 
-## 🎓 Key Metrics Explained
+## Key Metrics Explained
 
 ### CPU Percent
 - Percentage of CPU time used by process
@@ -252,7 +252,7 @@ done
 - Open files, sockets, pipes
 - System limit typically 1024 per process
 
-## 📞 Support
+## Support
 
 For issues:
 1. Check README.md (detailed docs)
@@ -265,4 +265,3 @@ For issues:
 ---
 
 **Last Updated**: 2025-12-09
-**Project**: SIH L5 - Next Generation Firewall
