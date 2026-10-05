@@ -20,7 +20,7 @@ try:
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
-    print("⚠️  VAJRA not available - only showing Suricata flows")
+    print("[WARN]  VAJRA not available - only showing Suricata flows")
 
 # ANSI colors for terminal
 class Color:
@@ -42,7 +42,7 @@ def watch_suricata_eve(eve_path):
     """Watch Suricata eve.json for network flows"""
     position = 0
     
-    print(f"{Color.GREEN}📡 Watching Suricata flows: {eve_path}{Color.RESET}\n")
+    print(f"{Color.GREEN}Watching Suricata flows: {eve_path}{Color.RESET}\n")
     
     while True:
         try:
@@ -317,7 +317,7 @@ def start_scapy_capture(interface=None):
     if not SCAPY_AVAILABLE:
         return
     
-    print(f"{Color.GREEN}🔍 Starting VAJRA packet capture...{Color.RESET}")
+    print(f"{Color.GREEN}Starting VAJRA packet capture...{Color.RESET}")
     if interface:
         print(f"   Interface: {interface}")
     else:
@@ -328,13 +328,13 @@ def start_scapy_capture(interface=None):
         # Capture packets (use store=False to avoid memory buildup)
         sniff(iface=interface, prn=packet_callback, store=False)
     except PermissionError:
-        print(f"{Color.RED}❌ Permission denied. Run with sudo:{Color.RESET}")
+        print(f"{Color.RED}[FAIL] Permission denied. Run with sudo:{Color.RESET}")
         print(f"   sudo python3 test.py")
     except Exception as e:
         print(f"{Color.RED}VAJRA error: {e}{Color.RESET}")
 
 def main():
-    print_header("🔥 Suricata Flow + VAJRA Packet Monitor")
+    print_header("Suricata Flow + VAJRA Packet Monitor")
     
     # Find eve.json
     eve_paths = [
@@ -351,7 +351,7 @@ def main():
             break
     
     if not eve_path:
-        print(f"{Color.YELLOW}⚠️  Suricata eve.json not found. Creating test file...{Color.RESET}")
+        print(f"{Color.YELLOW}[WARN]  Suricata eve.json not found. Creating test file...{Color.RESET}")
         eve_path = Path("logs/eve.json")
         eve_path.parent.mkdir(exist_ok=True)
         eve_path.touch()
@@ -372,14 +372,14 @@ def main():
         try:
             start_scapy_capture()
         except KeyboardInterrupt:
-            print(f"\n\n{Color.GREEN}✓ Stopped{Color.RESET}")
+            print(f"\n\n{Color.GREEN}[OK] Stopped{Color.RESET}")
     else:
         # If no scapy, just keep running
         try:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print(f"\n\n{Color.GREEN}✓ Stopped{Color.RESET}")
+            print(f"\n\n{Color.GREEN}[OK] Stopped{Color.RESET}")
 
 if __name__ == "__main__":
     main()

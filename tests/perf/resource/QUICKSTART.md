@@ -3,7 +3,7 @@
 ## 🚀 Quick Start
 
 ```bash
-cd /Users/agam1092005/Desktop/Projects/SIH/L5/linux/RC_testing
+cd tests/perf/resource
 sudo ./run_rc_tests.sh
 ```
 
@@ -40,7 +40,7 @@ sudo ./run_rc_tests.sh
 
 ### Location
 ```
-RC_testing/output/
+tests/perf/resource/output/
 ├── rc_report_YYYYMMDD_HHMMSS.json          # Full test results
 ├── rc_dashboard_YYYYMMDD_HHMMSS.png        # Visual dashboard (4 graphs)
 ├── rc_component_breakdown_YYYYMMDD_HHMMSS.png  # Component breakdown
@@ -256,7 +256,7 @@ done
 
 For issues:
 1. Check README.md (detailed docs)
-2. Review logs in `RC_testing/logs/`
+2. Review logs in `tests/perf/resource/logs/`
 3. Verify components work individually:
    - `python3 -m vajra.pipeline.eve_watcher`
    - `sudo ./scripts/start_macos.sh`

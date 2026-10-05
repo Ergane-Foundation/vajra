@@ -1,7 +1,5 @@
 #!/bin/bash
-# =============================================================================
 # NGFW Load Testing (LD) Script
-# =============================================================================
 #
 # Performs comprehensive load testing to identify bottlenecks:
 # - Baseline, Normal, Peak, Stress scenarios
@@ -13,15 +11,14 @@
 #   sudo ./run_ld_tests.sh
 #
 # Output:
-#   - LD_testing/output/ld_report_TIMESTAMP.json
-#   - LD_testing/output/ld_dashboard_TIMESTAMP.png
+#   - tests/perf/load/output/ld_report_TIMESTAMP.json
+#   - tests/perf/load/output/ld_dashboard_TIMESTAMP.png
 #
-# =============================================================================
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PARENT_DIR="$(dirname "$SCRIPT_DIR")"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/output"
 LOGS_DIR="$SCRIPT_DIR/logs"
 
@@ -52,9 +49,7 @@ log() {
     echo -e "${BOLD}[$timestamp]${NC} ${color}[$level]${NC} $msg"
 }
 
-# =============================================================================
 # Banner
-# =============================================================================
 
 clear
 echo -e "${BOLD}${CYAN}"
@@ -66,9 +61,7 @@ echo "║          Bottleneck Detection & Performance Analysis                 �
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
-# =============================================================================
 # Check Prerequisites
-# =============================================================================
 
 log INFO "Checking prerequisites..."
 
@@ -81,10 +74,10 @@ fi
 
 # Check Python
 PYTHON_CMD="python3"
-if [ -f "$PARENT_DIR/venv/bin/python3" ]; then
-    PYTHON_CMD="$PARENT_DIR/venv/bin/python3"
-elif [ -f "$PARENT_DIR/venv_test/bin/python3" ]; then
-    PYTHON_CMD="$PARENT_DIR/venv_test/bin/python3"
+if [ -f "$ROOT_DIR/venv/bin/python3" ]; then
+    PYTHON_CMD="$ROOT_DIR/venv/bin/python3"
+elif [ -f "$ROOT_DIR/venv_test/bin/python3" ]; then
+    PYTHON_CMD="$ROOT_DIR/venv_test/bin/python3"
 fi
 
 if ! command -v python3 &> /dev/null; then
@@ -97,9 +90,7 @@ log SUCCESS "Prerequisites OK"
 # Create directories
 mkdir -p "$OUTPUT_DIR" "$LOGS_DIR"
 
-# =============================================================================
 # Run Load Tests
-# =============================================================================
 
 log HEADER ""
 log HEADER "Starting Load Testing..."

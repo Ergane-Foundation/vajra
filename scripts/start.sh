@@ -1,7 +1,5 @@
 #!/bin/bash
-# =============================================================================
 # NGFW Complete Startup Script
-# =============================================================================
 # 
 # This script starts the ENTIRE NGFW pipeline in a single command:
 #   1. System Setup (install.sh, setup_venv.sh)
@@ -18,7 +16,6 @@
 #   sudo ./scripts/start.sh --no-http    # Skip HTTP server
 #   sudo ./scripts/start.sh --help       # Show help
 #
-# =============================================================================
 
 set -e
 
@@ -26,9 +23,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 export PYTHONPATH="$ROOT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
 
-# =============================================================================
 # Initial Setup Phase
-# =============================================================================
 
 # Check if this is first run (no venv exists)
 FIRST_RUN=false
@@ -47,9 +42,9 @@ if [ "$FIRST_RUN" = true ]; then
     if [ -f "scripts/install.sh" ]; then
         chmod +x scripts/install.sh
         ./scripts/install.sh
-        echo "✓ install.sh completed"
+        echo "[OK] install.sh completed"
     else
-        echo "⚠ install.sh not found, skipping..."
+        echo "[WARN] install.sh not found, skipping..."
     fi
     
     # Step 2: Run setup_venv.sh
@@ -58,16 +53,16 @@ if [ "$FIRST_RUN" = true ]; then
     if [ -f "scripts/setup_venv.sh" ]; then
         chmod +x scripts/setup_venv.sh
         ./scripts/setup_venv.sh
-        echo "✓ setup_venv.sh completed"
+        echo "[OK] setup_venv.sh completed"
     else
-        echo "⚠ setup_venv.sh not found, skipping..."
+        echo "[WARN] setup_venv.sh not found, skipping..."
     fi
     
     # Step 3: Create Python virtual environment
     echo ""
     echo "[Setup 3/4] Creating Python virtual environment..."
     python3 -m venv venv
-    echo "✓ Virtual environment created"
+    echo "[OK] Virtual environment created"
     
     # Step 4: Install requirements
     echo ""
@@ -76,9 +71,9 @@ if [ "$FIRST_RUN" = true ]; then
     if [ -f "requirements.txt" ]; then
         pip install --upgrade pip
         pip install -r requirements.txt
-        echo "✓ Requirements installed"
+        echo "[OK] Requirements installed"
     else
-        echo "⚠ requirements.txt not found, skipping..."
+        echo "[WARN] requirements.txt not found, skipping..."
     fi
     deactivate
     
@@ -99,9 +94,7 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# =============================================================================
 # Configuration - ALWAYS ENABLED
-# =============================================================================
 ENABLE_ML="true"
 ENABLE_PACKET_INSPECTION="true"  # Always enabled as requested
 ENABLE_HTTP_SERVER="true"
@@ -147,36 +140,18 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# =============================================================================
 # Banner
-# =============================================================================
-clear
-echo -e "${BOLD}${CYAN}"
-echo "╔═══════════════════════════════════════════════════════════════════════╗"
-echo "║                                                                       ║"
-echo "║     ███╗   ██╗ ██████╗ ███████╗██╗    ██╗    ██████╗ ██████╗ ███████╗ ║"
-echo "║     ████╗  ██║██╔════╝ ██╔════╝██║    ██║    ██╔══██╗██╔══██╗██╔════╝ ║"
-echo "║     ██╔██╗ ██║██║  ███╗█████╗  ██║ █╗ ██║    ██║  ██║██████╔╝███████╗ ║"
-echo "║     ██║╚██╗██║██║   ██║██╔══╝  ██║███╗██║    ██║  ██║██╔═══╝ ╚════██║ ║"
-echo "║     ██║ ╚████║╚██████╔╝██║     ╚███╔███╔╝    ██████╔╝██║     ███████║ ║"
-echo "║     ╚═╝  ╚═══╝ ╚═════╝ ╚═╝      ╚══╝╚══╝     ╚═════╝ ╚═╝     ╚══════╝ ║"
-echo "║                                                                       ║"
-echo "║          ML-Enhanced NGFW with Federated Learning                     ║"
-echo "╚═══════════════════════════════════════════════════════════════════════╝"
-echo -e "${NC}"
+echo -e "${BOLD}${CYAN}Starting pipeline (Linux, inline IPS mode)${NC}"
+echo ""
 
-# =============================================================================
 # Root Check
-# =============================================================================
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}ERROR: Must run as root for IPS mode${NC}"
     echo "Run: sudo ./scripts/start.sh"
     exit 1
 fi
 
-# =============================================================================
 # Virtual Environment Detection
-# =============================================================================
 # Check if we're in a venv and preserve it for sudo
 if [ -n "$VIRTUAL_ENV" ]; then
     PYTHON_CMD="$VIRTUAL_ENV/bin/python3"
@@ -192,9 +167,7 @@ else
     echo -e "${YELLOW}Using system Python${NC}"
 fi
 
-# =============================================================================
 # Create Directories (use absolute paths)
-# =============================================================================
 LOGS_DIR="$ROOT_DIR/logs"
 RULES_DIR="$ROOT_DIR/rules"
 ML_MODELS_DIR="$ROOT_DIR/${ML_MODELS_DIR:-models}"
@@ -203,11 +176,9 @@ FL_MODELS_DIR="$ROOT_DIR/fl_models"
 mkdir -p "$LOGS_DIR" "$LOGS_DIR/reports" "$ML_MODELS_DIR" "$FL_MODELS_DIR" "$RULES_DIR"
 chmod 755 "$LOGS_DIR" "$ML_MODELS_DIR" "$FL_MODELS_DIR" "$RULES_DIR"
 
-echo -e "${GREEN}  ✓ Directories ready${NC}"
+echo -e "${GREEN}  [OK] Directories ready${NC}"
 
-# =============================================================================
 # Get Network Info - AUTO DETECTION
-# =============================================================================
 
 # Auto-detect network interface
 auto_detect_interface() {
@@ -295,9 +266,7 @@ echo -e "  Network: ${YELLOW}$NETWORK_CIDR${NC}"
 echo ""
 
 
-# =============================================================================
 # Kill Existing Processes
-# =============================================================================
 echo -e "${YELLOW}[0/8] Cleaning up existing processes...${NC}"
 pkill -9 suricata 2>/dev/null || true
 pkill -f "vajra.soar.engine" 2>/dev/null || true
@@ -309,11 +278,9 @@ pkill -f "uvicorn.*eve_watcher" 2>/dev/null || true
 pkill -f "vajra.pipeline.eve_watcher" 2>/dev/null || true
 pkill -f "python3 -m http.server" 2>/dev/null || true
 sleep 2
-echo -e "${GREEN}  ✓ Cleanup complete${NC}"
+echo -e "${GREEN}  [OK] Cleanup complete${NC}"
 
-# =============================================================================
 # Step 1: Setup NFQUEUE iptables rules
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[1/8] Setting up NFQUEUE iptables rules...${NC}"
 
@@ -333,11 +300,9 @@ iptables -I INPUT -j NFQUEUE --queue-num 0 --queue-bypass
 iptables -I OUTPUT -j NFQUEUE --queue-num 0 --queue-bypass
 iptables -I FORWARD -j NFQUEUE --queue-num 0 --queue-bypass
 
-echo -e "${GREEN}  ✓ NFQUEUE rules configured${NC}"
+echo -e "${GREEN}  [OK] NFQUEUE rules configured${NC}"
 
-# =============================================================================
 # Step 1.5: Generate suricata.yaml with detected interface
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[1.5/8] Generating suricata.yaml with detected interface...${NC}"
 
@@ -519,11 +484,9 @@ unix-command:
   enabled: no
 EOF
 
-echo -e "${GREEN}  ✓ Generated config/suricata/suricata.runtime.yaml for interface: $INTERFACE${NC}"
+echo -e "${GREEN}  [OK] Generated config/suricata/suricata.runtime.yaml for interface: $INTERFACE${NC}"
 
-# =============================================================================
 # Step 2: Start Suricata IPS
-# =============================================================================
 
 echo ""
 echo -e "${YELLOW}[2/8] Starting Suricata in IPS mode (NFQUEUE)...${NC}"
@@ -539,18 +502,18 @@ sleep 4
 
 if pgrep -f "suricata" > /dev/null; then
     SURI_PID=$(cat "$LOGS_DIR/suricata.pid" 2>/dev/null || pgrep -f "suricata" | head -1)
-    echo -e "${GREEN}  ✓ Suricata IPS running (PID: $SURI_PID)${NC}"
+    echo -e "${GREEN}  [OK] Suricata IPS running (PID: $SURI_PID)${NC}"
     echo -e "${BLUE}    Mode: NFQUEUE on queue 0${NC}"
     
     # Verify eve.json is being written
     sleep 2
     if [ -f "$LOGS_DIR/eve.json" ] && [ -s "$LOGS_DIR/eve.json" ]; then
-        echo -e "${GREEN}  ✓ eve.json is being written${NC}"
+        echo -e "${GREEN}  [OK] eve.json is being written${NC}"
     else
-        echo -e "${YELLOW}  ⚠ eve.json not yet populated (may take a few seconds)${NC}"
+        echo -e "${YELLOW}  [WARN] eve.json not yet populated (may take a few seconds)${NC}"
     fi
 else
-    echo -e "${RED}  ✗ Suricata failed to start${NC}"
+    echo -e "${RED}  [FAIL] Suricata failed to start${NC}"
     echo "Check $LOGS_DIR/suricata.log and $LOGS_DIR/suricata_startup.log for errors"
     echo ""
     echo "Startup log:"
@@ -562,9 +525,7 @@ else
     exit 1
 fi
 
-# =============================================================================
 # Step 3: Start HTTP Server (for testing)
-# =============================================================================
 echo ""
 if [ "$ENABLE_HTTP_SERVER" = "true" ]; then
     echo -e "${YELLOW}[3/8] Starting HTTP Server on port $HTTP_PORT...${NC}"
@@ -575,18 +536,16 @@ if [ "$ENABLE_HTTP_SERVER" = "true" ]; then
     sleep 1
     
     if ps -p $HTTP_PID > /dev/null 2>&1; then
-        echo -e "${GREEN}  ✓ HTTP Server started (PID: $HTTP_PID)${NC}"
+        echo -e "${GREEN}  [OK] HTTP Server started (PID: $HTTP_PID)${NC}"
         echo -e "${BLUE}    URL: http://$IFACE_IP:$HTTP_PORT${NC}"
     else
-        echo -e "${YELLOW}  ⚠ HTTP Server failed (may need different port)${NC}"
+        echo -e "${YELLOW}  [WARN] HTTP Server failed (may need different port)${NC}"
     fi
 else
     echo -e "${YELLOW}[3/8] HTTP Server skipped (--no-http)${NC}"
 fi
 
-# =============================================================================
 # Step 4: Start Unified Logger
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[4/8] Starting Unified Logger...${NC}"
 
@@ -596,14 +555,12 @@ echo $LOGGER_PID > logs/unified_logger.pid
 sleep 1
 
 if ps -p $LOGGER_PID > /dev/null 2>&1; then
-    echo -e "${GREEN}  ✓ Unified Logger started (PID: $LOGGER_PID)${NC}"
+    echo -e "${GREEN}  [OK] Unified Logger started (PID: $LOGGER_PID)${NC}"
 else
-    echo -e "${YELLOW}  ⚠ Unified Logger failed to start${NC}"
+    echo -e "${YELLOW}  [WARN] Unified Logger failed to start${NC}"
 fi
 
-# =============================================================================
 # Step 5: Start SOAR Engine (with ML and Packet Inspection)
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[5/8] Starting SOAR Engine (ML + Packet Inspection)...${NC}"
 
@@ -617,17 +574,15 @@ echo $SOAR_PID > logs/soar.pid
 sleep 2
 
 if ps -p $SOAR_PID > /dev/null 2>&1; then
-    echo -e "${GREEN}  ✓ SOAR Engine started (PID: $SOAR_PID)${NC}"
+    echo -e "${GREEN}  [OK] SOAR Engine started (PID: $SOAR_PID)${NC}"
     echo -e "${BLUE}    ML Models: $ML_MODELS_DIR${NC}"
     echo -e "${BLUE}    Packet Inspection: ENABLED${NC}"
 else
-    echo -e "${YELLOW}  ⚠ SOAR Engine failed to start${NC}"
+    echo -e "${YELLOW}  [WARN] SOAR Engine failed to start${NC}"
     echo "    Check logs/soar.out for errors"
 fi
 
-# =============================================================================
 # Step 6: Start Inference API (Federated Learning)
-# =============================================================================
 echo ""
 if [ "$ENABLE_INFERENCE_API" = "true" ]; then
     echo -e "${YELLOW}[6/8] Starting Inference API (Federated Learning)...${NC}"
@@ -639,12 +594,12 @@ if [ "$ENABLE_INFERENCE_API" = "true" ]; then
     sleep 3
     
     if ps -p $API_PID > /dev/null 2>&1; then
-        echo -e "${GREEN}  ✓ Inference API started (PID: $API_PID)${NC}"
+        echo -e "${GREEN}  [OK] Inference API started (PID: $API_PID)${NC}"
         echo -e "${BLUE}    URL: http://localhost:8001${NC}"
         echo -e "${BLUE}    Health: http://localhost:8001/health${NC}"
         echo -e "${BLUE}    Docs: http://localhost:8001/docs${NC}"
     else
-        echo -e "${YELLOW}  ⚠ Inference API failed to start${NC}"
+        echo -e "${YELLOW}  [WARN] Inference API failed to start${NC}"
         echo -e "${YELLOW}    Check logs/inference_api.out for errors${NC}"
         echo -e "${YELLOW}    Install with: pip install uvicorn fastapi${NC}"
     fi
@@ -652,9 +607,7 @@ else
     echo -e "${YELLOW}[6/8] Inference API skipped (--no-api)${NC}"
 fi
 
-# =============================================================================
 # Step 7: Start Eve Watcher (WebSocket stream for eve.json)
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[7/8] Starting Eve Watcher (WebSocket stream)...${NC}"
 
@@ -664,18 +617,16 @@ echo $EVE_WATCHER_PID > logs/eve_watcher.pid
 sleep 2
 
 if ps -p $EVE_WATCHER_PID > /dev/null 2>&1; then
-    echo -e "${GREEN}  ✓ Eve Watcher started (PID: $EVE_WATCHER_PID)${NC}"
+    echo -e "${GREEN}  [OK] Eve Watcher started (PID: $EVE_WATCHER_PID)${NC}"
     echo -e "${BLUE}    WebSocket: ws://localhost:8000/ws/logs${NC}"
     echo -e "${BLUE}    Health: http://localhost:8000/health${NC}"
     echo -e "${BLUE}    Stats: http://localhost:8000/stats${NC}"
 else
-    echo -e "${YELLOW}  ⚠ Eve Watcher failed to start${NC}"
+    echo -e "${YELLOW}  [WARN] Eve Watcher failed to start${NC}"
     echo -e "${YELLOW}    Check logs/eve_watcher.out for errors${NC}"
 fi
 
-# =============================================================================
 # Step 8: Start Kafka Bridge (optional)
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[8/8] Starting Kafka Bridge...${NC}"
 
@@ -685,14 +636,12 @@ echo $BRIDGE_PID > logs/bridge.pid
 sleep 1
 
 if ps -p $BRIDGE_PID > /dev/null 2>&1; then
-    echo -e "${GREEN}  ✓ Kafka Bridge started (PID: $BRIDGE_PID)${NC}"
+    echo -e "${GREEN}  [OK] Kafka Bridge started (PID: $BRIDGE_PID)${NC}"
 else
-    echo -e "${YELLOW}  ⚠ Kafka Bridge not running (Kafka may not be available)${NC}"
+    echo -e "${YELLOW}  [WARN] Kafka Bridge not running (Kafka may not be available)${NC}"
 fi
 
-# =============================================================================
 # Step 8: Check ML Models
-# =============================================================================
 echo ""
 echo -e "${YELLOW}[8/8] Checking ML Models...${NC}"
 
@@ -709,7 +658,7 @@ ML_MODEL_COUNT=$((PKL_MODEL_COUNT + H5_MODEL_COUNT + TFLITE_MODEL_COUNT + SUBDIR
 FL_MODEL_COUNT=$(find "fl_models" -name "*.pkl" -o -name "*.joblib" 2>/dev/null | wc -l | tr -d ' ')
 
 if [ "$ML_MODEL_COUNT" -gt 0 ]; then
-    echo -e "${GREEN}  ✓ Found $ML_MODEL_COUNT ML model(s) in $ML_MODELS_DIR${NC}"
+    echo -e "${GREEN}  [OK] Found $ML_MODEL_COUNT ML model(s) in $ML_MODELS_DIR${NC}"
     echo -e "${BLUE}    PKL/Joblib: $PKL_MODEL_COUNT, H5: $H5_MODEL_COUNT, TFLite: $TFLITE_MODEL_COUNT, Subdirs: $SUBDIR_MODEL_COUNT${NC}"
     
     # List all models
@@ -728,18 +677,16 @@ if [ "$ML_MODEL_COUNT" -gt 0 ]; then
         fi
     done 2>/dev/null
 else
-    echo -e "${YELLOW}  ⚠ No ML models in $ML_MODELS_DIR${NC}"
+    echo -e "${YELLOW}  [WARN] No ML models in $ML_MODELS_DIR${NC}"
 fi
 
 if [ "$FL_MODEL_COUNT" -gt 0 ]; then
-    echo -e "${GREEN}  ✓ Found $FL_MODEL_COUNT FL model(s) in fl_models/${NC}"
+    echo -e "${GREEN}  [OK] Found $FL_MODEL_COUNT FL model(s) in fl_models/${NC}"
 else
-    echo -e "${YELLOW}  ⚠ No FL models in fl_models/ (run FL client to train)${NC}"
+    echo -e "${YELLOW}  [WARN] No FL models in fl_models/ (run FL client to train)${NC}"
 fi
 
-# =============================================================================
 # Final Summary
-# =============================================================================
 echo ""
 echo -e "${BOLD}${GREEN}"
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
@@ -747,16 +694,16 @@ echo "║                     NGFW IPS MODE ACTIVE                              
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
-echo -e "${GREEN}✓${NC} All traffic flows through Suricata IPS"
-echo -e "${GREEN}✓${NC} Malicious packets are ${RED}DROPPED${NC}"
-echo -e "${GREEN}✓${NC} ML threat detection is ${GREEN}ENABLED${NC}"
-echo -e "${GREEN}✓${NC} Packet inspection is ${GREEN}ENABLED${NC}"
-echo -e "${GREEN}✓${NC} SOAR orchestration is ${GREEN}ACTIVE${NC}"
+echo -e "${GREEN}[OK]${NC} All traffic flows through Suricata IPS"
+echo -e "${GREEN}[OK]${NC} Malicious packets are ${RED}DROPPED${NC}"
+echo -e "${GREEN}[OK]${NC} ML threat detection is ${GREEN}ENABLED${NC}"
+echo -e "${GREEN}[OK]${NC} Packet inspection is ${GREEN}ENABLED${NC}"
+echo -e "${GREEN}[OK]${NC} SOAR orchestration is ${GREEN}ACTIVE${NC}"
 if [ "$ENABLE_HTTP_SERVER" = "true" ]; then
-    echo -e "${GREEN}✓${NC} HTTP server on port ${YELLOW}$HTTP_PORT${NC}"
+    echo -e "${GREEN}[OK]${NC} HTTP server on port ${YELLOW}$HTTP_PORT${NC}"
 fi
 if [ "$ENABLE_INFERENCE_API" = "true" ]; then
-    echo -e "${GREEN}✓${NC} Inference API on port ${YELLOW}8001${NC}"
+    echo -e "${GREEN}[OK]${NC} Inference API on port ${YELLOW}8001${NC}"
 fi
 
 echo ""
@@ -769,7 +716,7 @@ echo "  SOAR Engine:    logs/soar_engine.log"
 
 echo ""
 echo -e "${BOLD}Test Attack:${NC}"
-echo -e "  ${CYAN}python3 attack_test.py --target $IFACE_IP --full${NC}"
+echo -e "  ${CYAN}python3 tools/attack_simulator.py --target $IFACE_IP --full${NC}"
 
 echo ""
 echo -e "${BOLD}Monitor:${NC}"

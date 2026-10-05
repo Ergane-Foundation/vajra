@@ -35,8 +35,8 @@ import threading
 
 # Add parent directory to path
 SCRIPT_DIR = Path(__file__).parent.absolute()
-PARENT_DIR = SCRIPT_DIR.parent
-sys.path.insert(0, str(PARENT_DIR))
+ROOT_DIR = SCRIPT_DIR.parents[2]
+sys.path.insert(0, str(ROOT_DIR))
 
 @dataclass
 class ProcessMetrics:

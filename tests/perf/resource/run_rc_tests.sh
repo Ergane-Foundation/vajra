@@ -1,7 +1,5 @@
 #!/bin/bash
-# =============================================================================
 # NGFW Resource Consumption (RC) Testing Script
-# =============================================================================
 # 
 # This script automates the entire RC testing process:
 # 1. Starts the NGFW pipeline (eve_watcher + start_macos.sh)
@@ -12,16 +10,15 @@
 #   sudo ./run_rc_tests.sh
 #
 # Output:
-#   - RC_testing/output/rc_report_TIMESTAMP.json
-#   - RC_testing/output/rc_dashboard_TIMESTAMP.png
-#   - RC_testing/output/resource_snapshots.json
+#   - tests/perf/resource/output/rc_report_TIMESTAMP.json
+#   - tests/perf/resource/output/rc_dashboard_TIMESTAMP.png
+#   - tests/perf/resource/output/resource_snapshots.json
 #
-# =============================================================================
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PARENT_DIR="$(dirname "$SCRIPT_DIR")"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/output"
 LOGS_DIR="$SCRIPT_DIR/logs"
 
@@ -34,9 +31,7 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# =============================================================================
 # Functions
-# =============================================================================
 
 log() {
     local level=$1
@@ -56,9 +51,7 @@ log() {
     echo -e "${BOLD}[$timestamp]${NC} ${color}[$level]${NC} $msg"
 }
 
-# =============================================================================
 # Banner
-# =============================================================================
 
 clear
 echo -e "${BOLD}${CYAN}"
@@ -69,9 +62,7 @@ echo "║                                                                       
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
-# =============================================================================
 # Check Prerequisites
-# =============================================================================
 
 log INFO "Checking prerequisites..."
 
@@ -90,12 +81,12 @@ fi
 
 # Check for required Python packages
 PYTHON_CMD="python3"
-if [ -f "$PARENT_DIR/venv/bin/python3" ]; then
-    PYTHON_CMD="$PARENT_DIR/venv/bin/python3"
-    log INFO "Using venv: $PARENT_DIR/venv"
-elif [ -f "$PARENT_DIR/venv_test/bin/python3" ]; then
-    PYTHON_CMD="$PARENT_DIR/venv_test/bin/python3"
-    log INFO "Using venv_test: $PARENT_DIR/venv_test"
+if [ -f "$ROOT_DIR/venv/bin/python3" ]; then
+    PYTHON_CMD="$ROOT_DIR/venv/bin/python3"
+    log INFO "Using venv: $ROOT_DIR/venv"
+elif [ -f "$ROOT_DIR/venv_test/bin/python3" ]; then
+    PYTHON_CMD="$ROOT_DIR/venv_test/bin/python3"
+    log INFO "Using venv_test: $ROOT_DIR/venv_test"
 fi
 
 # Check psutil
@@ -111,9 +102,7 @@ log SUCCESS "Prerequisites OK"
 mkdir -p "$OUTPUT_DIR" "$LOGS_DIR"
 log INFO "Output directory: $OUTPUT_DIR"
 
-# =============================================================================
 # Run RC Test
-# =============================================================================
 
 log HEADER ""
 log HEADER "Starting RC Test..."
@@ -143,9 +132,7 @@ else
     log ERROR ""
 fi
 
-# =============================================================================
 # Summary
-# =============================================================================
 
 log HEADER "═══════════════════════════════════════════════════════════════════════"
 log HEADER "Test ID: $(ls -t $OUTPUT_DIR/rc_report_*.json 2>/dev/null | head -1 | xargs basename | sed 's/rc_report_//' | sed 's/.json//')"

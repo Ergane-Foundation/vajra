@@ -295,7 +295,7 @@ def compare_reports(report1_file: Path, report2_file: Path):
         diff = v2 - v1
         pct = (diff / v1 * 100) if v1 > 0 else 0
         
-        symbol = "🔴" if diff > 5 else "🟢" if diff < -5 else "🟡"
+        symbol = "higher" if diff > 5 else "lower" if diff < -5 else "similar"
         print(f"  {metric:4s}: {v1:6.1f}% → {v2:6.1f}%  ({diff:+6.1f}%, {pct:+5.1f}%) {symbol}")
     
     print("\n" + "-"*70)
@@ -310,7 +310,7 @@ def compare_reports(report1_file: Path, report2_file: Path):
         diff = v2 - v1
         pct = (diff / v1 * 100) if v1 > 0 else 0
         
-        symbol = "🔴" if diff > 50 else "🟢" if diff < -50 else "🟡"
+        symbol = "higher" if diff > 50 else "lower" if diff < -50 else "similar"
         print(f"  {metric:4s}: {v1:7.1f}MB → {v2:7.1f}MB  ({diff:+7.1f}MB, {pct:+5.1f}%) {symbol}")
     
     print("\n" + "="*70)
