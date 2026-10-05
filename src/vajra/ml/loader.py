@@ -10,6 +10,8 @@ import logging
 from pathlib import Path
 from typing import Any, Optional, Dict
 
+from vajra.common.paths import PROJECT_ROOT
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -178,9 +180,9 @@ def load_ml_model(model_path: str = "ml_models/deep_insider_threat_model.pkl") -
     import os
     
     try:
-        # If relative path, make it relative to linux/ directory
+        # If relative path, resolve it against the project root
         if not os.path.isabs(model_path):
-            script_dir = os.path.dirname(os.path.abspath(__file__))
+            script_dir = str(PROJECT_ROOT)
             model_path = os.path.join(script_dir, model_path)
         
         path = Path(model_path)
@@ -230,9 +232,9 @@ def load_eta_model(model_path: str = "ml_models/eta_model.pkl") -> Optional[Any]
     import os
     
     try:
-        # If relative path, make it relative to linux/ directory
+        # If relative path, resolve it against the project root
         if not os.path.isabs(model_path):
-            script_dir = os.path.dirname(os.path.abspath(__file__))
+            script_dir = str(PROJECT_ROOT)
             model_path = os.path.join(script_dir, model_path)
         
         path = Path(model_path)
@@ -322,9 +324,9 @@ def load_backdoor_model(model_dir: str = "ml_models/backdoor_detection") -> Opti
     import os
     
     try:
-        # If relative path, make it relative to linux/ directory
+        # If relative path, resolve it against the project root
         if not os.path.isabs(model_dir):
-            script_dir = os.path.dirname(os.path.abspath(__file__))
+            script_dir = str(PROJECT_ROOT)
             model_dir = os.path.join(script_dir, model_dir)
         
         model_path = Path(model_dir)
@@ -409,9 +411,9 @@ def load_h5_model(model_path: str = "ml_models/domain_classifier.h5") -> Optiona
     import os
     
     try:
-        # If relative path, make it relative to linux/ directory
+        # If relative path, resolve it against the project root
         if not os.path.isabs(model_path):
-            script_dir = os.path.dirname(os.path.abspath(__file__))
+            script_dir = str(PROJECT_ROOT)
             model_path = os.path.join(script_dir, model_path)
         
         path = Path(model_path)
@@ -457,9 +459,9 @@ def load_tflite_model(model_path: str = "ml_models/gnn_fingerprint.tflite") -> O
     import os
     
     try:
-        # If relative path, make it relative to linux/ directory
+        # If relative path, resolve it against the project root
         if not os.path.isabs(model_path):
-            script_dir = os.path.dirname(os.path.abspath(__file__))
+            script_dir = str(PROJECT_ROOT)
             model_path = os.path.join(script_dir, model_path)
         
         path = Path(model_path)

@@ -3,7 +3,7 @@
 Resource Consumption Monitor for NGFW Pipeline
 
 Monitors real-time resource consumption of the entire NGFW pipeline:
-- eve_watcher.py
+- eve_watcher
 - start_macos.sh components (Suricata, SOAR, Inference API, Unified Logger, etc.)
 - ML Models loading and inference
 - Federated Learning operations

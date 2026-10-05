@@ -6,6 +6,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
+export PYTHONPATH="$SCRIPT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -26,13 +27,13 @@ if ! command -v uvicorn &> /dev/null; then
 fi
 
 # Kill existing API server
-pkill -f "uvicorn inference_api:app" 2>/dev/null || true
+pkill -f "uvicorn vajra.api.inference:app" 2>/dev/null || true
 sleep 1
 
 # Start API server
 echo -e "${YELLOW}Starting Inference API on port 8001...${NC}"
 
-nohup uvicorn inference_api:app \
+nohup uvicorn vajra.api.inference:app \
     --host 0.0.0.0 \
     --port 8001 \
     --log-level info \

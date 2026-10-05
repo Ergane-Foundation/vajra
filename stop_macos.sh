@@ -108,7 +108,7 @@ if [ -f logs/soar.pid ]; then
     kill $PID 2>/dev/null && echo -e "${GREEN}  ✓ Stopped (PID: $PID)${NC}" || echo "  - Already stopped"
     rm -f logs/soar.pid
 else
-    pkill -f "soar_engine.py" 2>/dev/null && echo -e "${GREEN}  ✓ Stopped${NC}" || echo "  - Not running"
+    pkill -f "vajra.soar.engine" 2>/dev/null && echo -e "${GREEN}  ✓ Stopped${NC}" || echo "  - Not running"
 fi
 
 # =============================================================================
@@ -121,7 +121,7 @@ if [ -f logs/unified_logger.pid ]; then
     kill $PID 2>/dev/null && echo -e "${GREEN}  ✓ Stopped (PID: $PID)${NC}" || echo "  - Already stopped"
     rm -f logs/unified_logger.pid
 else
-    pkill -f "unified_logger.py" 2>/dev/null && echo -e "${GREEN}  ✓ Stopped${NC}" || echo "  - Not running"
+    pkill -f "vajra.pipeline.unified_logger" 2>/dev/null && echo -e "${GREEN}  ✓ Stopped${NC}" || echo "  - Not running"
 fi
 
 # =============================================================================
@@ -134,7 +134,7 @@ if [ -f logs/inference_api.pid ]; then
     kill $PID 2>/dev/null && echo -e "${GREEN}  ✓ Stopped (PID: $PID)${NC}" || echo "  - Already stopped"
     rm -f logs/inference_api.pid
 else
-    pkill -f "uvicorn inference_api" 2>/dev/null && echo -e "${GREEN}  ✓ Stopped${NC}" || echo "  - Not running"
+    pkill -f "vajra.api.inference" 2>/dev/null && echo -e "${GREEN}  ✓ Stopped${NC}" || echo "  - Not running"
 fi
 
 # =============================================================================
@@ -147,7 +147,7 @@ if [ -f logs/bridge.pid ]; then
     kill $PID 2>/dev/null && echo -e "${GREEN}  ✓ Stopped (PID: $PID)${NC}" || echo "  - Already stopped"
     rm -f logs/bridge.pid
 else
-    pkill -f "kafka_bridge.py" 2>/dev/null && echo -e "${GREEN}  ✓ Stopped${NC}" || echo "  - Not running"
+    pkill -f "vajra.pipeline.kafka_bridge" 2>/dev/null && echo -e "${GREEN}  ✓ Stopped${NC}" || echo "  - Not running"
 fi
 
 # =============================================================================
@@ -160,7 +160,7 @@ if [ -f logs/packet_inspector.pid ]; then
     kill $PID 2>/dev/null && echo -e "${GREEN}  ✓ Stopped (PID: $PID)${NC}" || echo "  - Already stopped"
     rm -f logs/packet_inspector.pid
 else
-    pkill -f "packet_inspector.py" 2>/dev/null && echo -e "${GREEN}  ✓ Stopped${NC}" || echo "  - Not running"
+    pkill -f "vajra.inspection.packet_inspector" 2>/dev/null && echo -e "${GREEN}  ✓ Stopped${NC}" || echo "  - Not running"
 fi
 
 # =============================================================================

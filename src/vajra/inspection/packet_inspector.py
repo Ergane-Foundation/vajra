@@ -33,7 +33,7 @@ import queue
 
 # DPDK consumer (recommended)
 try:
-    from dpdk_consumer import DPDKJSONConsumer, DPDKPacketFeatures
+    from vajra.inspection.dpdk_consumer import DPDKJSONConsumer, DPDKPacketFeatures
     DPDK_AVAILABLE = True
 except ImportError:
     DPDK_AVAILABLE = False
@@ -52,7 +52,7 @@ except ImportError:
 
 # Local imports
 try:
-    from ml_model_manager import get_model_manager, MLPrediction
+    from vajra.ml.manager import get_model_manager, MLPrediction
     ML_AVAILABLE = True
 except ImportError:
     ML_AVAILABLE = False
@@ -222,12 +222,12 @@ class PacketInspector:
                 self._running = False
                 self.stats = {'status': 'disabled', 'reason': 'dpdk not available'}
                 return
-            logger.info("🚀 DPDK MODE ENABLED - High-performance packet processing")
+            logger.info("DPDK MODE ENABLED - High-performance packet processing")
             logger.info(f"  Reading features from: {dpdk_json_path}")
             self.dpdk_consumer = DPDKJSONConsumer(dpdk_json_path)
         else:
             # Legacy Scapy mode (DEPRECATED)
-            logger.warning("⚠️  SCAPY MODE (DEPRECATED) - Consider switching to DPDK for better performance")
+            logger.warning("[WARN]  SCAPY MODE (DEPRECATED) - Consider switching to DPDK for better performance")
             if not SCAPY_AVAILABLE:
                 logger.error("Scapy is not available. Packet inspection will be disabled.")
                 logger.error("Install with: pip install scapy (or use DPDK mode)")
@@ -481,7 +481,7 @@ class PacketInspector:
                         ml_prediction = pred
                         
                         logger.warning(
-                            f"🚨 ML THREAT: {pred.threat_type} | "
+                            f"[ALERT] ML THREAT: {pred.threat_type} | "
                             f"{features.src_ip}:{features.src_port} -> "
                             f"{features.dst_ip}:{features.dst_port} | "
                             f"Model: {name} | Confidence: {pred.confidence:.2%}"
@@ -576,7 +576,7 @@ class PacketInspector:
                         ml_prediction = pred
                         
                         logger.warning(
-                            f"🚨 ML THREAT: {pred.threat_type} | "
+                            f"[ALERT] ML THREAT: {pred.threat_type} | "
                             f"{features.src_ip}:{features.src_port} -> "
                             f"{features.dst_ip}:{features.dst_port} | "
                             f"Model: {name} | Confidence: {pred.confidence:.2%}"
@@ -596,7 +596,7 @@ class PacketInspector:
         # Log DPDK-flagged suspicious packets
         if dpdk_features.suspicious:
             logger.warning(
-                f"🚨 DPDK SUSPICIOUS: {features.src_ip}:{features.src_port} -> "
+                f"[ALERT] DPDK SUSPICIOUS: {features.src_ip}:{features.src_port} -> "
                 f"{features.dst_ip}:{features.dst_port} [{features.protocol}]"
             )
     
@@ -689,7 +689,7 @@ def main():
     
     parser = argparse.ArgumentParser(
         description="Packet Inspector with ML (DPDK or Scapy mode)",
-        epilog="Example: sudo python3 packet_inspector.py --dpdk --dpdk-json /tmp/dpdk_features.json"
+        epilog="Example: sudo python3 -m vajra.inspection.packet_inspector --dpdk --dpdk-json /tmp/dpdk_features.json"
     )
     
     # Capture mode
@@ -715,8 +715,8 @@ def main():
     # Warn if using deprecated Scapy mode
     if not args.dpdk:
         logger.warning("=" * 70)
-        logger.warning("⚠️  WARNING: Scapy mode is DEPRECATED")
-        logger.warning("⚠️  For production, use --dpdk for high-performance packet processing")
+        logger.warning("[WARN]  WARNING: Scapy mode is DEPRECATED")
+        logger.warning("[WARN]  For production, use --dpdk for high-performance packet processing")
         logger.warning("=" * 70)
     
     # Setup signal handlers

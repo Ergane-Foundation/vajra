@@ -4,7 +4,7 @@ NGFW Resource Consumption (RC) Testing Suite
 
 This script performs comprehensive resource consumption testing of the entire
 NGFW pipeline including:
-- eve_watcher.py (WebSocket streaming)
+- eve_watcher (WebSocket streaming)
 - Suricata IDS
 - SOAR Engine (with ML models)
 - Packet Inspector
@@ -13,7 +13,7 @@ NGFW pipeline including:
 - Kafka Bridge
 
 The test:
-1. Starts the full pipeline (eve_watcher.py + start_macos.sh)
+1. Starts the full pipeline (eve_watcher + start_macos.sh)
 2. Monitors resource consumption in real-time
 3. Simulates realistic traffic/attack scenarios
 4. Generates comprehensive reports with visualizations
@@ -108,17 +108,17 @@ class NGFWPipelineManager:
         return "python3"
     
     def start_eve_watcher(self) -> bool:
-        """Start eve_watcher.py"""
-        log("Starting eve_watcher.py...")
+        """Start eve_watcher"""
+        log("Starting eve_watcher...")
         
         try:
-            eve_script = PARENT_DIR / "eve_watcher.py"
             log_file = LOGS_DIR / "eve_watcher.log"
             
             with open(log_file, 'w') as f:
                 self.eve_watcher_proc = subprocess.Popen(
-                    [self.python_cmd, str(eve_script)],
+                    [self.python_cmd, "-m", "vajra.pipeline.eve_watcher"],
                     cwd=str(PARENT_DIR),
+                    env={**os.environ, "PYTHONPATH": str(PARENT_DIR / "src")},
                     stdout=f,
                     stderr=subprocess.STDOUT,
                     start_new_session=True
@@ -128,14 +128,14 @@ class NGFWPipelineManager:
             time.sleep(3)
             
             if self.eve_watcher_proc.poll() is None:
-                log(f"eve_watcher.py started (PID: {self.eve_watcher_proc.pid})", "SUCCESS")
+                log(f"eve_watcher started (PID: {self.eve_watcher_proc.pid})", "SUCCESS")
                 return True
             else:
-                log("eve_watcher.py failed to start", "ERROR")
+                log("eve_watcher failed to start", "ERROR")
                 return False
                 
         except Exception as e:
-            log(f"Failed to start eve_watcher.py: {e}", "ERROR")
+            log(f"Failed to start eve_watcher: {e}", "ERROR")
             return False
     
     def start_macos_pipeline(self) -> bool:
@@ -452,7 +452,7 @@ def run_rc_test():
     
     try:
         # Phase 1: Start eve_watcher
-        log("\n[Phase 1/5] Starting eve_watcher.py...", "HEADER")
+        log("\n[Phase 1/5] Starting eve_watcher...", "HEADER")
         if not pipeline.start_eve_watcher():
             log("Failed to start eve_watcher, continuing anyway...", "WARNING")
         

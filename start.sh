@@ -24,6 +24,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
+export PYTHONPATH="$SCRIPT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
 
 # =============================================================================
 # Initial Setup Phase
@@ -299,13 +300,13 @@ echo ""
 # =============================================================================
 echo -e "${YELLOW}[0/8] Cleaning up existing processes...${NC}"
 pkill -9 suricata 2>/dev/null || true
-pkill -f "soar_engine.py" 2>/dev/null || true
-pkill -f "unified_logger.py" 2>/dev/null || true
-pkill -f "kafka_bridge.py" 2>/dev/null || true
-pkill -f "packet_inspector.py" 2>/dev/null || true
-pkill -f "uvicorn inference_api" 2>/dev/null || true
+pkill -f "vajra.soar.engine" 2>/dev/null || true
+pkill -f "vajra.pipeline.unified_logger" 2>/dev/null || true
+pkill -f "vajra.pipeline.kafka_bridge" 2>/dev/null || true
+pkill -f "vajra.inspection.packet_inspector" 2>/dev/null || true
+pkill -f "vajra.api.inference" 2>/dev/null || true
 pkill -f "uvicorn.*eve_watcher" 2>/dev/null || true
-pkill -f "eve_watcher.py" 2>/dev/null || true
+pkill -f "vajra.pipeline.eve_watcher" 2>/dev/null || true
 pkill -f "python3 -m http.server" 2>/dev/null || true
 sleep 2
 echo -e "${GREEN}  ✓ Cleanup complete${NC}"
@@ -589,7 +590,7 @@ fi
 echo ""
 echo -e "${YELLOW}[4/8] Starting Unified Logger...${NC}"
 
-nohup $PYTHON_CMD unified_logger.py > logs/unified_logger.out 2>&1 &
+nohup $PYTHON_CMD -m vajra.pipeline.unified_logger > logs/unified_logger.out 2>&1 &
 LOGGER_PID=$!
 echo $LOGGER_PID > logs/unified_logger.pid
 sleep 1
@@ -607,7 +608,7 @@ echo ""
 echo -e "${YELLOW}[5/8] Starting SOAR Engine (ML + Packet Inspection)...${NC}"
 
 # Build SOAR command - ALWAYS enable ML and packet inspection
-SOAR_CMD="$PYTHON_CMD soar_engine.py --file-mode --ml-models-dir $ML_MODELS_DIR"
+SOAR_CMD="$PYTHON_CMD -m vajra.soar.engine --file-mode --ml-models-dir $ML_MODELS_DIR"
 SOAR_CMD="$SOAR_CMD --packet-inspection --interface $INTERFACE"
 
 nohup $SOAR_CMD > logs/soar.out 2>&1 &
@@ -632,7 +633,7 @@ if [ "$ENABLE_INFERENCE_API" = "true" ]; then
     echo -e "${YELLOW}[6/8] Starting Inference API (Federated Learning)...${NC}"
     
     # Try to start inference API (will work if dependencies are installed)
-    nohup $PYTHON_CMD inference_api.py > logs/inference_api.out 2>&1 &
+    nohup $PYTHON_CMD -m vajra.api.inference > logs/inference_api.out 2>&1 &
     API_PID=$!
     echo $API_PID > logs/inference_api.pid
     sleep 3
@@ -657,7 +658,7 @@ fi
 echo ""
 echo -e "${YELLOW}[7/8] Starting Eve Watcher (WebSocket stream)...${NC}"
 
-nohup $PYTHON_CMD eve_watcher.py > logs/eve_watcher.out 2>&1 &
+nohup $PYTHON_CMD -m vajra.pipeline.eve_watcher > logs/eve_watcher.out 2>&1 &
 EVE_WATCHER_PID=$!
 echo $EVE_WATCHER_PID > logs/eve_watcher.pid
 sleep 2
@@ -678,7 +679,7 @@ fi
 echo ""
 echo -e "${YELLOW}[8/8] Starting Kafka Bridge...${NC}"
 
-nohup $PYTHON_CMD kafka_bridge.py > logs/bridge.out 2>&1 &
+nohup $PYTHON_CMD -m vajra.pipeline.kafka_bridge > logs/bridge.out 2>&1 &
 BRIDGE_PID=$!
 echo $BRIDGE_PID > logs/bridge.pid
 sleep 1

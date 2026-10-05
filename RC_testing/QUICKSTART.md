@@ -10,7 +10,7 @@ sudo ./run_rc_tests.sh
 ## 📋 What Gets Tested
 
 ### Pipeline Components
-- ✅ **eve_watcher.py** - Real-time event streaming (WebSocket)
+- ✅ **eve_watcher** - Real-time event streaming (WebSocket)
 - ✅ **Suricata IDS** - Network packet analysis
 - ✅ **SOAR Engine** - ML-powered threat response
 - ✅ **Packet Inspector** - Deep packet inspection
@@ -28,7 +28,7 @@ sudo ./run_rc_tests.sh
 
 ## 🎯 Test Phases
 
-1. **Warmup** (10s) - Start eve_watcher.py
+1. **Warmup** (10s) - Start eve_watcher
 2. **Pipeline Start** (15s) - Launch all components via start_macos.sh
 3. **Baseline** (30s) - Measure idle resource usage
 4. **Load Test** (60s) - Simulate traffic + attacks
@@ -258,7 +258,7 @@ For issues:
 1. Check README.md (detailed docs)
 2. Review logs in `RC_testing/logs/`
 3. Verify components work individually:
-   - `python3 eve_watcher.py`
+   - `python3 -m vajra.pipeline.eve_watcher`
    - `sudo ./start_macos.sh`
 4. Check system resources: `top`, `htop`
 

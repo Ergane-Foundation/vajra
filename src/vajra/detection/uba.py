@@ -51,7 +51,7 @@ logger = logging.getLogger("uba_engine")
 
 # ML model integration
 try:
-    from ml_model_manager import get_model_manager, MLModelManager
+    from vajra.ml.manager import get_model_manager, MLModelManager
     ML_AVAILABLE = True
 except ImportError:
     ML_AVAILABLE = False
@@ -231,7 +231,7 @@ class UBAEngine:
                 confidence=0.85
             )
             self.alerts_generated += 1
-            logger.warning(f"🚨 HIGH RISK: {profile.user_id} - Night logon + USB transfer")
+            logger.warning(f"[ALERT] HIGH RISK: {profile.user_id} - Night logon + USB transfer")
             self._save_alert(alert)
             return alert
         
@@ -247,7 +247,7 @@ class UBAEngine:
                 confidence=0.90
             )
             self.alerts_generated += 1
-            logger.error(f"🚨 CRITICAL: {profile.user_id} - Potential data exfiltration")
+            logger.error(f"[ALERT] CRITICAL: {profile.user_id} - Potential data exfiltration")
             self._save_alert(alert)
             return alert
         
@@ -263,7 +263,7 @@ class UBAEngine:
                 confidence=0.75
             )
             self.alerts_generated += 1
-            logger.warning(f"⚠️ MEDIUM: {profile.user_id} - Repeated USB activity")
+            logger.warning(f"[WARN] MEDIUM: {profile.user_id} - Repeated USB activity")
             self._save_alert(alert)
             return alert
         
@@ -286,7 +286,7 @@ class UBAEngine:
                             confidence=prediction.confidence
                         )
                         self.alerts_generated += 1
-                        logger.warning(f"🤖 ML ALERT: {profile.user_id} - {prediction.threat_type} ({prediction.confidence:.2%})")
+                        logger.warning(f"ML ALERT: {profile.user_id} - {prediction.threat_type} ({prediction.confidence:.2%})")
                         self._save_alert(alert)
                         return alert
             except Exception as e:
@@ -429,7 +429,7 @@ if __name__ == "__main__":
     for event in events:
         alert = uba.update_user_state(event)
         if alert:
-            print(f"\n⚠️ ALERT: {json.dumps(asdict(alert), indent=2)}")
+            print(f"\n[WARN] ALERT: {json.dumps(asdict(alert), indent=2)}")
     
     print("\n=== User Profiles ===")
     for user_id, profile in uba.get_all_profiles().items():

@@ -6,7 +6,7 @@ Connects SOAR engine to FastAPI-based ML inference service.
 Replaces direct model loading with API calls for Federated Learning support.
 
 Usage:
-    from soar_api_integration import InferenceAPIClient
+    from vajra.api.client import InferenceAPIClient
     
     # Create client
     client = InferenceAPIClient(api_url="http://localhost:8001")
@@ -23,9 +23,7 @@ from dataclasses import dataclass
 logger = logging.getLogger("soar_api_integration")
 
 
-# ============================================================================
 # API Client
-# ============================================================================
 
 @dataclass
 class APIpredictionResult:
@@ -200,9 +198,7 @@ class InferenceAPIClient:
             return False
 
 
-# ============================================================================
 # SOAR Integration Helpers
-# ============================================================================
 
 def create_features_from_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -273,9 +269,7 @@ def determine_model_type(alert: Dict[str, Any]) -> str:
         return 'general'
 
 
-# ============================================================================
 # Example Usage
-# ============================================================================
 
 def example_usage():
     """Example of how to use the API client"""

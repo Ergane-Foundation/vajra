@@ -114,7 +114,7 @@ class FirewallBenchmark:
             
             if not latencies:
                 print("❌ No packet processing detected!")
-                print("   Ensure packet_inspector.py is running with: sudo python3 packet_inspector.py -i en0")
+                print("   Ensure the packet inspector is running with: sudo python3 -m vajra.inspection.packet_inspector -i en0")
                 return
 
             print(f"\n📊 Latency Results (Detection Time):")
@@ -164,7 +164,7 @@ class FirewallBenchmark:
 
 if __name__ == "__main__":
     print("=== Firewall Benchmarker ===")
-    print("Ensure 'python3 packet_inspector.py' (or DPDK) is running in another terminal.")
+    print("Ensure 'python3 -m vajra.inspection.packet_inspector' (or DPDK) is running in another terminal.")
     
     bm = FirewallBenchmark()
     

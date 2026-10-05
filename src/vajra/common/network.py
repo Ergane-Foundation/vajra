@@ -9,7 +9,7 @@ Automatically detects:
 - Network CIDR
 
 Usage:
-    from network_utils import get_active_interface, get_local_ip
+    from vajra.common.network import get_active_interface, get_local_ip
     
     interface = get_active_interface()  # 'eth0', 'enp0s5', etc.
     ip = get_local_ip()                 # '192.168.1.100'
@@ -225,6 +225,6 @@ if __name__ == "__main__":
             print_network_info()
         else:
             print(f"Unknown command: {cmd}")
-            print("Usage: python3 network_utils.py [interface|ip|gateway|network|all]")
+            print("Usage: python3 -m vajra.common.network [interface|ip|gateway|network|all]")
     else:
         print_network_info()

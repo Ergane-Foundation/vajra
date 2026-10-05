@@ -18,10 +18,10 @@ from pathlib import Path
 from typing import List, Tuple, Dict, Any
 from dataclasses import asdict
 
-# Add the script directory to Python path to allow imports
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
+# Make the vajra package importable without installation
+SRC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
 
 # Try importing requests
 try:
@@ -34,30 +34,30 @@ except ImportError:
 
 # Try importing ML model manager
 try:
-    from ml_model_manager import get_model_manager
+    from vajra.ml.manager import get_model_manager
     ML_AVAILABLE = True
 except ImportError as e:
     ML_AVAILABLE = False
     print(f"Note: ML model manager not available - {e}")
-    print("Make sure ml_model_manager.py is in the same directory as attack_test.py")
+    print("Make sure the vajra package is importable (run from the repo root or pip install -e .)")
 
 # Try importing UBA engine
 try:
-    from uba_engine import get_uba_engine
+    from vajra.detection.uba import get_uba_engine
     UBA_AVAILABLE = True
 except ImportError as e:
     UBA_AVAILABLE = False
     print(f"Note: UBA engine not available - {e}")
-    print("Make sure uba_engine.py is in the same directory as attack_test.py")
+    print("Make sure the vajra package is importable (run from the repo root or pip install -e .)")
 
 # Try importing ETA engine
 try:
-    from eta_engine import get_eta_engine
+    from vajra.experimental.engines.eta import get_eta_engine
     ETA_AVAILABLE = True
 except ImportError as e:
     ETA_AVAILABLE = False
     print(f"Note: ETA engine not available - {e}")
-    print("Make sure eta_engine.py is in the same directory as attack_test.py")
+    print("Make sure the vajra package is importable (run from the repo root or pip install -e .)")
 
 
 class AttackTester:
@@ -261,9 +261,9 @@ class AttackTester:
         print("\n[ML Insider Threat Detection - Real Model Testing]")
         
         try:
-            from model_loader import load_ml_model, get_ml_predictions
+            from vajra.ml.loader import load_ml_model, get_ml_predictions
         except ImportError:
-            self.log("ML Testing", "ERROR", "model_loader.py not found")
+            self.log("ML Testing", "ERROR", "vajra.ml.loader not available")
             return
         
         # Load the real trained model
@@ -504,7 +504,7 @@ class AttackTester:
         
         if not UBA_AVAILABLE:
             self.log("UBA Testing", "SKIPPED", 
-                     "UBA engine not available - check uba_engine.py")
+                     "UBA engine not available - check vajra.detection.uba")
             return
         
         try:
@@ -666,7 +666,7 @@ class AttackTester:
         
         if not ETA_AVAILABLE:
             self.log("ETA Testing", "SKIPPED", 
-                     "ETA engine not available - check eta_engine.py")
+                     "ETA engine not available - check vajra.experimental.engines.eta")
             return
         
         try:
@@ -837,7 +837,7 @@ def auto_detect_target_ip():
     
     # Method 1: Try using our network_utils module
     try:
-        from network_utils import get_local_ip
+        from vajra.common.network import get_local_ip
         ip = get_local_ip()
         if ip and ip != '127.0.0.1':
             return ip

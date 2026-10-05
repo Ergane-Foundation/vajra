@@ -8,7 +8,7 @@ This testing suite monitors and analyzes the resource consumption of the entire 
 
 ### Pipeline Components Tested
 
-1. **eve_watcher.py** - WebSocket streaming service for real-time event monitoring
+1. **eve_watcher** - WebSocket streaming service for real-time event monitoring
 2. **start_macos.sh Pipeline**:
    - **Suricata IDS** - Network intrusion detection system
    - **SOAR Engine** - Security Orchestration and Automated Response with ML integration
@@ -77,7 +77,7 @@ The RC test follows this sequence:
 
 ```
 1. Warmup (10s)
-   ├─ Start eve_watcher.py
+   ├─ Start eve_watcher
    └─ Initialize monitoring
    
 2. Pipeline Startup (15s)
@@ -141,7 +141,7 @@ All output files are saved in `RC_testing/output/` with timestamps:
 ### Logs
 
 All detailed logs are saved in `RC_testing/logs/`:
-- `eve_watcher.log` - eve_watcher.py output
+- `eve_watcher.log` - eve_watcher output
 - `start_macos.log` - Pipeline startup logs
 
 ## Understanding the Results
