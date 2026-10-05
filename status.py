@@ -36,7 +36,7 @@ def main():
     
     # ML Models
     print("\n[ML Models]")
-    ml_dir = Path("ml_models")
+    ml_dir = Path("models")
     if ml_dir.exists():
         models = list(ml_dir.glob("*.pkl")) + list(ml_dir.glob("*.joblib"))
         print(f"  Total models: {len(models)}")
@@ -46,7 +46,7 @@ def main():
         if not models:
             print("    No models loaded (add .pkl or .joblib files)")
     else:
-        print("  ml_models/ directory not found")
+        print("  models/ directory not found")
     
     # Log files
     print("\n[Log Files]")

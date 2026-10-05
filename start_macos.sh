@@ -108,7 +108,7 @@ ENABLE_ML="true"
 ENABLE_PACKET_INSPECTION="true"  # Always enabled as requested
 ENABLE_HTTP_SERVER="true"
 ENABLE_INFERENCE_API="true"
-ML_MODELS_DIR="${ML_MODELS_DIR:-ml_models}"
+ML_MODELS_DIR="${ML_MODELS_DIR:-models}"
 HTTP_PORT="${HTTP_PORT:-8080}"  # Use 8080 on macOS (80 requires more permissions)
 
 # Parse arguments
@@ -133,7 +133,7 @@ while [[ $# -gt 0 ]]; do
             echo "Environment Variables (optional - all are auto-detected):"
             echo "  NGFW_INTERFACE      Network interface (auto-detected if not set)"
             echo "  HTTP_PORT           HTTP server port (default: 8080)"
-            echo "  ML_MODELS_DIR       ML models directory (default: ml_models)"
+            echo "  ML_MODELS_DIR       ML models directory (default: models)"
             echo ""
             echo "The script automatically detects:"
             echo "  - Active network interface"
@@ -201,7 +201,7 @@ fi
 # =============================================================================
 LOGS_DIR="$SCRIPT_DIR/logs"
 RULES_DIR="$SCRIPT_DIR/rules"
-ML_MODELS_DIR="$SCRIPT_DIR/${ML_MODELS_DIR:-ml_models}"
+ML_MODELS_DIR="$SCRIPT_DIR/${ML_MODELS_DIR:-models}"
 FL_MODELS_DIR="$SCRIPT_DIR/fl_models"
 
 mkdir -p "$LOGS_DIR" "$LOGS_DIR/reports" "$ML_MODELS_DIR" "$FL_MODELS_DIR" "$RULES_DIR"

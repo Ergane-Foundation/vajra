@@ -267,7 +267,7 @@ class AttackTester:
             return
         
         # Load the real trained model
-        ml_model = load_ml_model("ml_models/deep_insider_threat_model.pkl")
+        ml_model = load_ml_model("models/deep_insider_threat_model.pkl")
         if ml_model is None:
             self.log("ML Testing", "ERROR", "Failed to load trained model")
             return

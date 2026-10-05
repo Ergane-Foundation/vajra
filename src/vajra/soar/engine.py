@@ -150,7 +150,7 @@ class FirewallManager:
             if success:
                 self.blocked_ips.add(ip)
                 self._save_blocked_ips()
-                logger.info(f"🛡️ BLOCKED IP: {ip} | Reason: {reason}")
+                logger.info(f"BLOCKED IP: {ip} | Reason: {reason}")
             else:
                 logger.error(f"Failed to block IP: {ip}")
                 
@@ -221,7 +221,7 @@ class ReportGenerator:
         }
         
         report_file.write_text(json.dumps(report, indent=2))
-        logger.info(f"📄 Report generated: {report_file.name}")
+        logger.info(f"Report generated: {report_file.name}")
         
         return report
     
@@ -306,7 +306,7 @@ class SOAREngine:
         kafka_broker: str = "localhost:9092",
         topic: str = "suricata-alerts",
         group_id: str = "soar-engine",
-        ml_models_dir: str = "ml_models",
+        ml_models_dir: str = "models",
         enable_ml: bool = True,
         enable_packet_inspection: bool = False,
         network_interface: str = None
@@ -418,7 +418,7 @@ class SOAREngine:
         self.ml_threats_detected += 1
         
         logger.warning(
-            f"🤖 ML THREAT DETECTED: {prediction.threat_type} | "
+            f"ML THREAT DETECTED: {prediction.threat_type} | "
             f"Model: {prediction.model_name} | "
             f"Confidence: {prediction.confidence:.2%}"
         )
@@ -437,13 +437,13 @@ class SOAREngine:
             )
             if blocked:
                 self.blocked_count += 1
-                logger.info(f"🛡️ Blocked {src_ip} based on ML prediction")
+                logger.info(f"Blocked {src_ip} based on ML prediction")
     
     def _on_packet_threat(self, features: 'PacketFeatures', prediction: Optional[MLPrediction]):
         """Callback when packet inspector detects a threat"""
         if prediction and prediction.is_threat:
             logger.warning(
-                f"📦 PACKET THREAT: {features.src_ip}:{features.src_port} -> "
+                f"PACKET THREAT: {features.src_ip}:{features.src_port} -> "
                 f"{features.dst_ip}:{features.dst_port} | "
                 f"ML: {prediction.threat_type} ({prediction.confidence:.2%})"
             )
@@ -514,7 +514,7 @@ class SOAREngine:
         
         logger.info(f"Processing alert: {signature} from {src_ip} [{severity}]")
         
-        # ========== UBA Analysis ==========
+        # UBA Analysis
         # Extract user information from alert if available
         uba_alert = None
         if self.uba_engine and alert.get('user_id'):
@@ -769,7 +769,7 @@ def main():
     parser.add_argument("--topic", default="suricata-alerts", help="Kafka topic")
     parser.add_argument("--eve", default="logs/eve.json", help="Eve file for fallback mode")
     parser.add_argument("--file-mode", action="store_true", help="Force file-based mode")
-    parser.add_argument("--ml-models-dir", default="ml_models", help="Directory containing ML models")
+    parser.add_argument("--ml-models-dir", default="models", help="Directory containing ML models")
     parser.add_argument("--no-ml", action="store_true", help="Disable ML predictions")
     parser.add_argument("--packet-inspection", action="store_true", help="Enable deep packet inspection with Scapy")
     parser.add_argument("--interface", help="Network interface for packet inspection")
@@ -782,7 +782,7 @@ def main():
     
     os.makedirs("logs", exist_ok=True)
     os.makedirs("logs/reports", exist_ok=True)
-    os.makedirs("ml_models", exist_ok=True)
+    os.makedirs("models", exist_ok=True)
     
     # Create engine
     engine = SOAREngine(

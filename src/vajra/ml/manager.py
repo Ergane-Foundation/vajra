@@ -233,7 +233,7 @@ class MLModelManager:
     - Combined logging with Suricata alerts
     """
     
-    def __init__(self, models_dir: str = "ml_models", log_file: str = "logs/ml_predictions.json"):
+    def __init__(self, models_dir: str = "models", log_file: str = "logs/ml_predictions.json"):
         self.models_dir = Path(models_dir)
         self.models_dir.mkdir(parents=True, exist_ok=True)
         
@@ -294,9 +294,9 @@ class MLModelManager:
                     model_type=model_type
                 )
                 if success:
-                    logger.info(f"✓ Auto-loaded model: {model_name} ({model_type})")
+                    logger.info(f"[OK] Auto-loaded model: {model_name} ({model_type})")
                 else:
-                    logger.warning(f"✗ Failed to auto-load model: {model_name}")
+                    logger.warning(f"[FAIL] Failed to auto-load model: {model_name}")
             except Exception as e:
                 logger.error(f"Error auto-loading {model_name}: {e}")
         
@@ -312,9 +312,9 @@ class MLModelManager:
                     model_type=model_type
                 )
                 if success:
-                    logger.info(f"✓ Auto-loaded model: {model_name} ({model_type})")
+                    logger.info(f"[OK] Auto-loaded model: {model_name} ({model_type})")
                 else:
-                    logger.warning(f"✗ Failed to auto-load model: {model_name}")
+                    logger.warning(f"[FAIL] Failed to auto-load model: {model_name}")
             except Exception as e:
                 logger.error(f"Error auto-loading {model_name}: {e}")
         
@@ -419,7 +419,7 @@ class MLModelManager:
                 )
                 self.stats['by_model'][name] = {'predictions': 0, 'threats': 0}
             
-            logger.info(f"✅ Loaded model: {name} ({model_type}) from {path}")
+            logger.info(f"[OK] Loaded model: {name} ({model_type}) from {path}")
             return True
             
         except Exception as e:

@@ -75,7 +75,7 @@ class ETAAnalysis:
 class ETAEngine:
     """Encrypted Traffic Analysis Engine for threat detection"""
     
-    def __init__(self, model_path: str = 'ml_models/eta_model.pkl'):
+    def __init__(self, model_path: str = 'models/eta_model.pkl'):
         self.model = None
         self.protocol_encoder = None
         self.features = []
@@ -95,7 +95,7 @@ class ETAEngine:
                 self.model = real_model
                 self.model_loaded = True
                 self.protocol_encoder = real_model.get('protocol_encoder')
-                logger.info("✅ Real ETA model loaded successfully")
+                logger.info("[OK] Real ETA model loaded successfully")
             else:
                 logger.warning(f"Could not load model from {model_path}")
                 self._create_placeholder_model()
@@ -170,7 +170,7 @@ class ETAEngine:
             
             if is_threat:
                 self._save_alert(analysis)
-                logger.warning(f"🔴 ETA THREAT: {prediction} (confidence: {confidence:.2%})")
+                logger.warning(f"ETA THREAT: {prediction} (confidence: {confidence:.2%})")
             
             return analysis
         
@@ -264,7 +264,7 @@ if __name__ == "__main__":
     for flow in test_flows:
         analysis = engine.analyze_flow(flow)
         if analysis:
-            status = "🔴 THREAT" if analysis.is_threat else "🟢 CLEAN"
+            status = "THREAT" if analysis.is_threat else "CLEAN"
             print(f"{status}: {analysis.prediction} ({analysis.confidence:.2%})")
             print(f"  Flow: {analysis.src_port} → {analysis.dest_port}")
             print(f"  Bytes: {analysis.total_bytes:,} | B/pkt: {analysis.bytes_per_packet:.2f}\n")

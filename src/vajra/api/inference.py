@@ -144,9 +144,7 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-# ============================================================================
 # Request/Response Models
-# ============================================================================
 
 class PredictionRequest(BaseModel):
     """Request format for predictions"""
@@ -179,9 +177,7 @@ class ModelInfo(BaseModel):
     metrics: Optional[Dict[str, float]]
 
 
-# ============================================================================
 # Model Loading
-# ============================================================================
 
 def load_model(model_path: Path, model_name: str, model_type: str) -> bool:
     """Load a model from disk into registry"""
@@ -203,7 +199,7 @@ def load_model(model_path: Path, model_name: str, model_type: str) -> bool:
             'version': 1
         }
         
-        logger.info(f"✓ Loaded model: {model_name} ({model_type})")
+        logger.info(f"[OK] Loaded model: {model_name} ({model_type})")
         return True
     
     except Exception as e:
@@ -228,7 +224,7 @@ def load_h5_model_to_registry(model_path: Path, model_name: str, model_type: str
             'version': 1
         }
         
-        logger.info(f"✓ Loaded H5 model: {model_name} ({model_type})")
+        logger.info(f"[OK] Loaded H5 model: {model_name} ({model_type})")
         return True
     except Exception as e:
         logger.error(f"Failed to load H5 model {model_name}: {e}")
@@ -259,7 +255,7 @@ def load_tflite_model_to_registry(model_path: Path, model_name: str, model_type:
             'version': 1
         }
         
-        logger.info(f"✓ Loaded TFLite model: {model_name} ({model_type})")
+        logger.info(f"[OK] Loaded TFLite model: {model_name} ({model_type})")
         return True
     except Exception as e:
         logger.error(f"Failed to load TFLite model {model_name}: {e}")
@@ -308,7 +304,7 @@ def load_multifile_model_to_registry(model_dir: Path, model_name: str, model_typ
             'version': 1
         }
         
-        logger.info(f"✓ Loaded multi-file model: {model_name} ({model_type})")
+        logger.info(f"[OK] Loaded multi-file model: {model_name} ({model_type})")
         return True
     except Exception as e:
         logger.error(f"Failed to load multi-file model {model_name}: {e}")
@@ -316,7 +312,7 @@ def load_multifile_model_to_registry(model_dir: Path, model_name: str, model_typ
 
 
 def load_all_models():
-    """Load all models from fl_models and ml_models directories"""
+    """Load all models from fl_models and models directories"""
     loaded_count = 0
     
     # Define expected FL models (pkl format)
@@ -328,7 +324,7 @@ def load_all_models():
     }
     
     # Define TensorFlow models (H5 and TFLite)
-    ml_models_dir = Path("ml_models")
+    ml_models_dir = Path("models")
     tf_models = {
         'domain_classifier.h5': ('domain', 'Domain/DNS Classifier'),
         'gnn_fingerprint.tflite': ('gnn', 'GNN Network Fingerprinting'),
@@ -408,9 +404,7 @@ def create_placeholder_model(model_type: str):
     return PlaceholderModel(model_type)
 
 
-# ============================================================================
 # Feature Extraction
-# ============================================================================
 
 def extract_features_from_request(
     req: PredictionRequest, 
@@ -483,9 +477,7 @@ def extract_features_from_request(
     return feature_vector
 
 
-# ============================================================================
 # API Endpoints
-# ============================================================================
 
 @app.on_event("startup")
 async def startup_event():
@@ -511,8 +503,8 @@ async def startup_event():
         if not unified_logger._running:
             unified_logger.start()
         
-        logger.info("✓ Unified logger integrated with WebSocket streaming")
-        logger.info("✓ Real-time log broadcasting enabled (zero-latency)")
+        logger.info("[OK] Unified logger integrated with WebSocket streaming")
+        logger.info("[OK] Real-time log broadcasting enabled (zero-latency)")
         
     except Exception as e:
         logger.error(f"Failed to initialize unified logger: {e}")
@@ -878,9 +870,7 @@ async def reload_models(background_tasks: BackgroundTasks):
     }
 
 
-# ============================================================================
 # WebSocket Endpoints for Real-Time Unified Logs
-# ============================================================================
 
 @app.websocket("/ws/logs")
 async def websocket_logs(websocket: WebSocket):
@@ -957,9 +947,7 @@ async def websocket_stats():
     }
 
 
-# ============================================================================
 # Unified Logger Integration
-# ============================================================================
 
 def broadcast_event_to_websockets(event):
     """
@@ -1003,9 +991,7 @@ async def shutdown_event():
         pass
 
 
-# ============================================================================
 # Main Entry Point
-# ============================================================================
 
 def main():
     """Run the API server"""
