@@ -100,6 +100,7 @@ NC='\033[0m'
 ENABLE_ML="true"
 ENABLE_PACKET_INSPECTION="true"  # Always enabled as requested
 ENABLE_HTTP_SERVER="true"
+SOAR_DRY_RUN="false"
 ENABLE_INFERENCE_API="true"
 ML_MODELS_DIR="${ML_MODELS_DIR:-models}"
 HTTP_PORT="${HTTP_PORT:-8080}"  # Use 8080 on macOS (80 requires more permissions)
@@ -109,6 +110,10 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --no-http)
             ENABLE_HTTP_SERVER="false"
+            shift
+            ;;
+        --dry-run)
+            SOAR_DRY_RUN="true"
             shift
             ;;
         --no-api)
@@ -121,6 +126,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --no-http    Skip starting HTTP server"
             echo "  --no-api     Skip starting Inference API"
+            echo "  --dry-run    Log SOAR block decisions without changing the firewall"
             echo "  --help       Show this help message"
             echo ""
             echo "Environment Variables (optional - all are auto-detected):"
@@ -563,6 +569,9 @@ echo -e "${YELLOW}[5/8] Starting SOAR Engine (ML + Packet Inspection)...${NC}"
 # Build SOAR command - ALWAYS enable ML and packet inspection
 SOAR_CMD="$PYTHON_CMD -m vajra.soar.engine --file-mode --ml-models-dir $ML_MODELS_DIR"
 SOAR_CMD="$SOAR_CMD --packet-inspection --interface $INTERFACE"
+if [ "$SOAR_DRY_RUN" = "true" ]; then
+    SOAR_CMD="$SOAR_CMD --dry-run"
+fi
 
 nohup $SOAR_CMD > logs/soar.out 2>&1 &
 SOAR_PID=$!

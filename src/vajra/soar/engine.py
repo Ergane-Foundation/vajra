@@ -11,6 +11,7 @@ Enhanced with ML model integration:
 - Unified logging for all security events
 """
 
+import ipaddress
 import json
 import time
 import logging
@@ -89,11 +90,56 @@ class ActionRecord:
 class FirewallManager:
     """Manages iptables/nftables for blocking IPs"""
     
-    def __init__(self):
+    def __init__(self, dry_run: bool = False, allowlist: Optional[List[str]] = None):
+        self.dry_run = dry_run
         self.backend = self._detect_backend()
+        self.allowlist = self._build_allowlist(allowlist or [])
         self.blocked_ips_file = Path("logs/blocked_ips.txt")
         self.blocked_ips = self._load_blocked_ips()
-        logger.info(f"Firewall backend: {self.backend}")
+        logger.info(f"Firewall backend: {self.backend}" + (" (dry run)" if dry_run else ""))
+        logger.info(f"Allowlist: {', '.join(str(n) for n in self.allowlist)}")
+
+    @property
+    def enforcing(self) -> bool:
+        """True when blocks are actually applied to the host firewall"""
+        return not self.dry_run and self.backend != "none"
+
+    def _build_allowlist(self, extra: List[str]) -> list:
+        """Networks that must never be blocked: loopback, this host, its gateway and DNS resolvers"""
+        entries = ["127.0.0.0/8", "::1/128"] + list(extra)
+        env = os.environ.get("VAJRA_ALLOWLIST", "")
+        entries += [e.strip() for e in env.split(",") if e.strip()]
+        try:
+            from vajra.common.network import get_local_ip, get_gateway_ip
+            entries += [get_local_ip(), get_gateway_ip()]
+        except Exception as e:
+            logger.warning(f"Could not detect local addresses for the allowlist: {e}")
+        try:
+            for line in Path("/etc/resolv.conf").read_text().splitlines():
+                parts = line.split()
+                if len(parts) >= 2 and parts[0] == "nameserver":
+                    entries.append(parts[1])
+        except OSError:
+            pass
+
+        networks = []
+        for entry in entries:
+            try:
+                network = ipaddress.ip_network(entry, strict=False)
+            except ValueError:
+                logger.warning(f"Ignoring invalid allowlist entry: {entry}")
+                continue
+            if network not in networks:
+                networks.append(network)
+        return networks
+
+    def is_allowlisted(self, ip: str) -> bool:
+        """Check whether an IP falls inside the allowlist"""
+        try:
+            address = ipaddress.ip_address(ip)
+        except ValueError:
+            return False
+        return any(address.version == n.version and address in n for n in self.allowlist)
     
     def _detect_backend(self) -> str:
         """Detect available firewall backend"""
@@ -117,12 +163,20 @@ class FirewallManager:
     
     def block_ip(self, ip: str, reason: str = "") -> bool:
         """Block an IP address"""
-        if not ip or ip in ("", "127.0.0.1", "::1"):
+        if not ip:
+            return False
+
+        if self.is_allowlisted(ip):
+            logger.warning(f"Not blocking allowlisted IP {ip} | Reason: {reason}")
             return False
         
         if ip in self.blocked_ips:
             logger.debug(f"IP {ip} already blocked")
             return True
+
+        if not self.enforcing:
+            logger.warning(f"Would block {ip} (not enforced: {'dry run' if self.dry_run else 'no firewall backend'}) | Reason: {reason}")
+            return False
         
         success = False
         
@@ -141,12 +195,7 @@ class FirewallManager:
                 r1 = subprocess.run(cmd1, capture_output=True, timeout=5)
                 r2 = subprocess.run(cmd2, capture_output=True, timeout=5)
                 success = r1.returncode == 0 or r2.returncode == 0
-            
-            else:
-                # No firewall - just log
-                logger.warning(f"No firewall backend - would block {ip}")
-                success = True  # Pretend success for logging
-            
+
             if success:
                 self.blocked_ips.add(ip)
                 self._save_blocked_ips()
@@ -309,10 +358,12 @@ class SOAREngine:
         ml_models_dir: str = "models",
         enable_ml: bool = True,
         enable_packet_inspection: bool = False,
-        network_interface: str = None
+        network_interface: str = None,
+        dry_run: bool = False,
+        allowlist: Optional[List[str]] = None
     ):
         self.topic = topic
-        self.firewall = FirewallManager()
+        self.firewall = FirewallManager(dry_run=dry_run, allowlist=allowlist)
         self.reporter = ReportGenerator()
         self.processed_alerts = 0
         self.blocked_count = 0
@@ -504,6 +555,16 @@ class SOAREngine:
         
         return False
     
+    def _action_result(self, should_block: bool, blocked: bool, src_ip: str) -> str:
+        """Describe the outcome of a SOAR decision"""
+        if not should_block or blocked:
+            return "success"
+        if self.firewall.is_allowlisted(src_ip):
+            return "allowlisted"
+        if not self.firewall.enforcing:
+            return "not_enforced"
+        return "failed"
+
     def process_alert(self, alert: Dict[str, Any]):
         """Process a single alert with ML enhancement"""
         self.processed_alerts += 1
@@ -570,7 +631,7 @@ class SOAREngine:
             target_ip=src_ip,
             signature=signature,
             severity=severity,
-            result="success" if (not should_block or blocked) else "failed",
+            result=self._action_result(should_block, blocked, src_ip),
             blocked=blocked
         )
         
@@ -773,6 +834,9 @@ def main():
     parser.add_argument("--no-ml", action="store_true", help="Disable ML predictions")
     parser.add_argument("--packet-inspection", action="store_true", help="Enable deep packet inspection with Scapy")
     parser.add_argument("--interface", help="Network interface for packet inspection")
+    parser.add_argument("--dry-run", action="store_true", help="Log block decisions without changing the firewall")
+    parser.add_argument("--allow", action="append", default=[], metavar="CIDR",
+                       help="Address or network that must never be blocked (repeatable)")
     parser.add_argument("--load-model", help="Load a specific model file")
     parser.add_argument("--model-name", default="custom", help="Name for the loaded model")
     parser.add_argument("--model-type", default="custom", 
@@ -791,7 +855,9 @@ def main():
         ml_models_dir=args.ml_models_dir,
         enable_ml=not args.no_ml,
         enable_packet_inspection=args.packet_inspection,
-        network_interface=args.interface
+        network_interface=args.interface,
+        dry_run=args.dry_run,
+        allowlist=args.allow
     )
     
     # Load specific model if requested
