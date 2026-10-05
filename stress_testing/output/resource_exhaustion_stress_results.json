@@ -1,8 +1,0 @@
-{
-  "timestamp": "2025-12-09T12:43:10.881140",
-  "test_type": "resource_exhaustion_stress",
-  "summary": {
-    "throughput": 1822,
-    "threshold_met": true
-  }
-}

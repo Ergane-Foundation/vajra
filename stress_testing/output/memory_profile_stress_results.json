@@ -1,8 +1,0 @@
-{
-  "timestamp": "2025-12-09T12:43:06.359052",
-  "test_type": "memory_profile_stress",
-  "summary": {
-    "throughput": 4669,
-    "threshold_met": true
-  }
-}
