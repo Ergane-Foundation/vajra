@@ -1,0 +1,64 @@
+name: Bug report
+description: Something does not work the way the documentation says it should.
+labels: ["bug", "needs triage"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce it
+      description: The smallest set of steps, alerts or configuration that shows the problem.
+      placeholder: |
+        1. sudo ./scripts/start.sh --dry-run
+        2. python3 tools/attack_simulator.py --target <vm-ip> --sqli
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - SOAR engine (blocking)
+        - Suricata rules or configuration
+        - Event stream or unified logger
+        - ML models or inference API
+        - Install, start or stop scripts
+        - Experimental components
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: wrong-block
+    attributes:
+      label: Did Vajra block or drop traffic it should not have?
+      description: Blocking the host itself, its gateway, its DNS resolvers or other legitimate traffic is the most serious kind of bug here.
+      options:
+        - "No"
+        - "Yes"
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and status
+      description: Output of `make status` and the relevant lines from `logs/soar_engine.log`, `logs/soar_actions.log` or `logs/eve.json`.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      placeholder: e.g. 5d94d7f
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS and version, Suricata version, Python version, and whether you ran in NFQUEUE (Linux) or pcap (macOS) mode.
