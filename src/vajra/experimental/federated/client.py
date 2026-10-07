@@ -29,7 +29,7 @@ import argparse
 import json
 import pickle
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -400,9 +400,9 @@ class VajraFlowerClient(fl.client.NumPyClient):
 class FLClientManager:
     """Manage FL clients for different model types"""
     
-    def __init__(self, server_host: str = "localhost"):
+    def __init__(self, server_host: str = "localhost", eve_path: str = "logs/eve.json"):
         self.server_host = server_host
-        self.parser = EvejsonParser()
+        self.parser = EvejsonParser(eve_path=eve_path)
     
     def train_and_update(self, model_type: str, dry_run: bool = False):
         """
@@ -483,7 +483,7 @@ def main():
     parser.add_argument('--dry-run', action='store_true',
                         help='Train locally but don\'t send to server')
     parser.add_argument('--eve-path', type=str, default='logs/eve.json',
-                        help='Path to eve.json file')
+                        help='Path to Suricata EVE JSON log file (default: logs/eve.json)')
     
     args = parser.parse_args()
     
@@ -491,7 +491,7 @@ def main():
     Path("logs").mkdir(exist_ok=True)
     
     # Create client manager
-    manager = FLClientManager(server_host=args.server_host)
+    manager = FLClientManager(server_host=args.server_host, eve_path=args.eve_path)
     
     try:
         if args.all:
