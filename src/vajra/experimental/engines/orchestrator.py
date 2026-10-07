@@ -24,18 +24,9 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
 
 # Create logs directory
-Path("logs").mkdir(exist_ok=True)
+from vajra.common.logging import setup_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/threat_orchestrator.log')
-    ]
-)
-
-logger = logging.getLogger("threat_orchestrator")
+logger = setup_logging("threat_orchestrator", "logs/threat_orchestrator.log")
 
 # Import detection engines
 try:

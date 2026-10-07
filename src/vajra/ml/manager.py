@@ -58,25 +58,9 @@ except ImportError:
     SKLEARN_AVAILABLE = False
 
 
-# Setup logging with error handling
-try:
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler('logs/ml_model_manager.log')
-        ]
-    )
-except Exception:
-    # Fallback to console-only logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(message)s',
-        handlers=[logging.StreamHandler()]
-    )
+from vajra.common.logging import setup_logging
 
-logger = logging.getLogger("ml_model_manager")
+logger = setup_logging("ml_model_manager", "logs/ml_model_manager.log")
 
 
 @dataclass

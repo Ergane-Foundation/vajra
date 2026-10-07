@@ -57,15 +57,9 @@ try:
 except ImportError:
     ML_AVAILABLE = False
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/packet_inspector.log')
-    ]
-)
-logger = logging.getLogger("packet_inspector")
+from vajra.common.logging import setup_logging
+
+logger = setup_logging("packet_inspector", "logs/packet_inspector.log")
 
 
 @dataclass
