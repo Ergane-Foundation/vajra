@@ -26,7 +26,7 @@ logger = logging.getLogger("soar_api_integration")
 # API Client
 
 @dataclass
-class APIpredictionResult:
+class APIPredictionResult:
     """Result from API prediction"""
     model_name: str
     prediction: int
