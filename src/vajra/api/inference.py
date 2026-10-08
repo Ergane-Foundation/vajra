@@ -385,8 +385,10 @@ def load_all_models():
 def create_placeholder_model(model_type: str):
     """Create a simple placeholder model"""
     class PlaceholderModel:
+        
         def __init__(self, model_type):
             self.model_type = model_type
+            self.is_placeholder = True
         
         def predict(self, X):
             # Always predict benign (0)
@@ -516,9 +518,17 @@ async def startup_event():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    # Count real vs placeholder models
+    placeholder_count = sum(
+        1 for info in MODEL_REGISTRY.values()
+        if getattr(info.get('model'), 'is_placeholder', False)
+    )
+    
     return {
         "status": "healthy",
         "models_loaded": len(MODEL_REGISTRY),
+        "real_models": len(MODEL_REGISTRY) - placeholder_count,
+        "placeholder_models": placeholder_count,
         "timestamp": datetime.now().isoformat()
     }
 
@@ -529,13 +539,18 @@ async def list_models():
     models_info = []
     
     for name, info in MODEL_REGISTRY.items():
+        # Check if model object is a placeholder
+        model_obj = info.get('model')
+        is_placeholder = getattr(model_obj, 'is_placeholder', False)
+        
         models_info.append(ModelInfo(
             name=name,
             type=info['type'],
             loaded=True,
+            is_placeholder=is_placeholder,  # <-- Added field
             last_updated=info['loaded_at'],
             version=info['version'],
-            metrics=None  # Could add accuracy, precision, etc.
+            metrics=None
         ))
     
     return models_info
