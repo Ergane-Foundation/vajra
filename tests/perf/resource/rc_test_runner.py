@@ -59,6 +59,49 @@ BASELINE_DURATION = 30  # seconds
 LOAD_DURATION = 60  # seconds
 COOLDOWN_DURATION = 10  # seconds
 
+# Attack load
+ATTACK_SIMULATOR = ROOT_DIR / "tools" / "attack_simulator.py"
+ATTACK_SIMULATOR_LOG = LOGS_DIR / "attack_simulator.log"
+# Every flag here must exist in the simulator's argparse. The simulator has no
+# --quick mode, so the load phase uses its safe mode, which is also what it
+# runs by default when neither --safe nor --full is given.
+ATTACK_SIMULATOR_FLAGS = ["--safe"]
+# Pause between simulator passes and how often the pass is checked for the end
+# of the load window
+ATTACK_GAP = 0.5  # seconds
+ATTACK_POLL_INTERVAL = 0.5  # seconds
+
+
+def find_python_interpreter() -> str:
+    """Find the Python executable that has the project dependencies available"""
+    venv_paths = [
+        ROOT_DIR / "venv" / "bin" / "python3",
+        ROOT_DIR / "venv_test" / "bin" / "python3"
+    ]
+
+    for path in venv_paths:
+        if path.exists():
+            return str(path)
+
+    return "python3"
+
+
+def build_attack_command(target: str) -> List[str]:
+    """Build the command that runs tools/attack_simulator.py against target
+
+    Every flag comes from ATTACK_SIMULATOR_FLAGS, which must stay in sync with
+    the simulator's argparse: an unknown flag makes argparse exit before any
+    attack is sent.
+    """
+    return [
+        find_python_interpreter(),
+        str(ATTACK_SIMULATOR),
+        "--target",
+        target,
+        *ATTACK_SIMULATOR_FLAGS
+    ]
+
+
 # Colors for output
 class Colors:
     HEADER = '\033[95m'
@@ -95,17 +138,7 @@ class VajraPipelineManager:
         
     def find_python(self) -> str:
         """Find the correct Python executable"""
-        # Check for venv
-        venv_paths = [
-            ROOT_DIR / "venv" / "bin" / "python3",
-            ROOT_DIR / "venv_test" / "bin" / "python3"
-        ]
-        
-        for path in venv_paths:
-            if path.exists():
-                return str(path)
-        
-        return "python3"
+        return find_python_interpreter()
     
     def start_eve_watcher(self) -> bool:
         """Start eve_watcher"""
@@ -251,20 +284,70 @@ class LoadSimulator:
         log(f"Generated {count} HTTP requests")
     
     def generate_attack_traffic(self, duration: int):
-        """Simulate attack traffic using tools/attack_simulator.py"""
-        try:
-            attack_script = ROOT_DIR / "tools" / "attack_simulator.py"
-            if attack_script.exists():
-                log("Generating attack traffic...")
-                subprocess.run(
-                    ["python3", str(attack_script), "--target", self.target_ip, "--quick"],
-                    cwd=str(ROOT_DIR),
-                    timeout=duration,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
-                )
-        except:
-            pass
+        """Simulate attack traffic using tools/attack_simulator.py
+
+        One simulator pass only lasts a few seconds, so it is re-run until the
+        load window closes. Its output goes to logs/attack_simulator.log and a
+        failed pass is reported, rather than being discarded.
+        """
+        if not ATTACK_SIMULATOR.exists():
+            log(f"Attack simulator not found at {ATTACK_SIMULATOR}", "WARNING")
+            return
+        
+        command = build_attack_command(self.target_ip)
+        end_time = time.time() + duration
+        runs = 0
+        failures = 0
+        
+        log("Generating attack traffic...")
+        while self.running and time.time() < end_time:
+            runs += 1
+            
+            try:
+                with open(ATTACK_SIMULATOR_LOG, 'a') as log_file:
+                    log_file.write(f"\n--- simulator pass {runs} ({datetime.now().isoformat()}) ---\n")
+                    log_file.flush()
+                    returncode = self._run_attack_pass(command, log_file, end_time)
+            except OSError as e:
+                log(f"Could not run the attack simulator: {e}", "ERROR")
+                return
+            
+            if returncode is None:
+                # The load window closed before the pass finished
+                break
+            if returncode != 0:
+                failures += 1
+                log(f"Attack simulator exited with code {returncode}, see {ATTACK_SIMULATOR_LOG}", "WARNING")
+            
+            if self.running and time.time() < end_time:
+                time.sleep(ATTACK_GAP)
+        
+        if runs:
+            log(f"Attack traffic: {runs} simulator pass(es), {failures} failed")
+        else:
+            log("No attack traffic generated", "WARNING")
+    
+    def _run_attack_pass(self, command: List[str], log_file, end_time: float) -> Optional[int]:
+        """Run one simulator pass, stopping it when the load window closes
+
+        Returns the exit code, or None if the pass was cut short by the deadline
+        or by the load being stopped.
+        """
+        proc = subprocess.Popen(
+            command,
+            cwd=str(ROOT_DIR),
+            stdout=log_file,
+            stderr=subprocess.STDOUT
+        )
+        
+        while True:
+            try:
+                return proc.wait(timeout=ATTACK_POLL_INTERVAL)
+            except subprocess.TimeoutExpired:
+                if not self.running or time.time() >= end_time:
+                    proc.kill()
+                    proc.wait()
+                    return None
     
     def start(self, duration: int):
         """Start generating load"""
