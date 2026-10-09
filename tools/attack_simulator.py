@@ -252,7 +252,7 @@ class AttackTester:
             except:
                 pass
         
-        self.log(f"SSH Bruteforce ({attempts})", "SENT", f"{success} conn, {blocked} blocked")
+        self.log(f"HTTP Flood ({count} req)", "SENT", f"{success} ok, {blocked} blocked")
     
     # ML-Based Insider Threat Testing
     def test_ml_insider_threats(self):
