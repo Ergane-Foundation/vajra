@@ -92,7 +92,7 @@ The RC test follows this sequence:
    
 4. Load Testing (60s)
    ├─ Generate HTTP traffic
-   ├─ Simulate attack patterns
+   ├─ Repeat the attack simulator until the window closes
    └─ Monitor under load
    
 5. Cooldown (10s)
@@ -143,6 +143,7 @@ All output files are saved in `tests/perf/resource/output/` with timestamps:
 All detailed logs are saved in `tests/perf/resource/logs/`:
 - `eve_watcher.log` - eve_watcher output
 - `start_macos.log` - Pipeline startup logs
+- `attack_simulator.log` - Attack simulator output, one section per pass
 
 ## Understanding the Results
 
@@ -222,6 +223,16 @@ Edit the `LoadSimulator` class in `rc_test_runner.py` to customize:
 - Traffic volume
 - Test scenarios
 
+The load phase runs `tools/attack_simulator.py` in a loop until the load window
+closes, using the flags in `ATTACK_SIMULATOR_FLAGS`. That list has to match the
+simulator's argparse: an unknown flag makes argparse exit before any attack is
+sent, and the load phase then measures nothing. `tests/unit/test_rc_attack_simulator_command.py`
+runs the command the harness builds against the real simulator to catch that.
+
+The default is the simulator's safe mode, which sends web attacks only. Change
+`ATTACK_SIMULATOR_FLAGS` to `["--full"]` to add port scans, HTTP flood and SSH
+bruteforce; these send real traffic and should only be aimed at a disposable VM.
+
 ## Troubleshooting
 
 ### "psutil not installed"
@@ -254,6 +265,18 @@ sudo python3 resource_monitor.py --duration 60
 1. Wait longer for pipeline startup (15s may not be enough)
 2. Check if components are running: `ps aux | grep -E "suricata|soar_engine"`
 3. Verify start_macos.sh works independently
+
+### "No attack traffic generated" or a non-zero simulator exit
+The harness prints how many simulator passes ran and how many failed. Check
+`logs/attack_simulator.log` for what the simulator said, and confirm the flags
+in `ATTACK_SIMULATOR_FLAGS` still exist in `tools/attack_simulator.py`:
+```bash
+sudo python3 ../../tools/attack_simulator.py --help
+```
+If the load phase reports passes but the numbers under load match the baseline,
+the attacks are going somewhere the pipeline is not watching. Confirm the
+target: the simulator builds `http://<target>/...`, so `--target 127.0.0.1` sends
+to the default HTTP port rather than to a service on 8080.
 
 ## Advanced Usage
 
