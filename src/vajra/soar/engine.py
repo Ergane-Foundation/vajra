@@ -63,15 +63,9 @@ try:
 except ImportError:
     UBA_AVAILABLE = False
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/soar_engine.log')
-    ]
-)
-logger = logging.getLogger("soar_engine")
+from vajra.common.logging import setup_logging
+
+logger = setup_logging("soar_engine", "logs/soar_engine.log")
 
 
 @dataclass

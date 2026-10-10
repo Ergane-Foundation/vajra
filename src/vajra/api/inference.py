@@ -31,16 +31,9 @@ from pydantic import BaseModel, Field
 import uvicorn
 import asyncio
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/inference_api.log')
-    ]
-)
-logger = logging.getLogger("inference_api")
+from vajra.common.logging import setup_logging
+
+logger = setup_logging("inference_api", "logs/inference_api.log")
 
 # Create FastAPI app
 app = FastAPI(

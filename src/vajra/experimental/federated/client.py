@@ -39,16 +39,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score
 import flwr as fl
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/fl_client.log')
-    ]
-)
-logger = logging.getLogger("fl_client")
+from vajra.common.logging import setup_logging
+
+logger = setup_logging("fl_client", "logs/fl_client.log")
 
 # Model configurations (must match server)
 MODEL_CONFIGS = {
