@@ -368,6 +368,7 @@ class SOAREngine:
         self.processed_alerts = 0
         self.blocked_count = 0
         self.ml_threats_detected = 0
+        self.malformed_lines = 0
         
         # ML Model Manager
         self.ml_enabled = enable_ml and ML_AVAILABLE
@@ -743,11 +744,31 @@ class SOAREngine:
                         for line in f:
                             try:
                                 event = json.loads(line.strip())
+                            except json.JSONDecodeError as exc:
+                                self.malformed_lines += 1
+                                logger.debug(
+                                    "Skipping malformed JSON in %s (malformed lines: %d): %s",
+                                    eve_path, self.malformed_lines, exc
+                                )
+                                continue
+
+                            if not isinstance(event, dict):
+                                self.malformed_lines += 1
+                                logger.debug(
+                                    "Skipping non-object JSON in %s (malformed lines: %d)",
+                                    eve_path, self.malformed_lines
+                                )
+                                continue
+
+                            try:
                                 if event.get("event_type") == "alert":
                                     alert = self._parse_eve_alert(event)
                                     self.process_alert(alert)
-                            except:
-                                pass
+                            except Exception:
+                                logger.exception(
+                                    "Error processing alert from %s; continuing with the next line",
+                                    eve_path
+                                )
                         
                         last_position = f.tell()
                 
