@@ -15,7 +15,7 @@ import os
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import asdict
 
 # Make the vajra package importable without installation
@@ -60,14 +60,48 @@ except ImportError as e:
     print("Make sure the vajra package is importable (run from the repo root or pip install -e .)")
 
 
+DEFAULT_HTTP_PORT = 80
+
+
+def split_target(target: str) -> Tuple[str, Optional[int]]:
+    """Split a target into host and HTTP port
+
+    Accepts "host", "host:port" and bracketed IPv6 literals such as
+    "[::1]:8080", so a caller that already knows which HTTP service it is
+    aiming at can say so. Only the HTTP attacks use the port: the port scan and
+    the SSH bruteforce connect to the bare host on their own ports, so keeping
+    the host separate means they are unaffected by it.
+
+    Returns the port as None when the target does not carry one.
+    """
+    if target.startswith("["):
+        host, bracket, rest = target.partition("]")
+        if bracket and rest.startswith(":"):
+            return f"{host}]", int(rest[1:])
+        return target, None
+
+    if target.count(":") == 1:
+        host, _, port = target.partition(":")
+        if port.isdigit():
+            return host, int(port)
+
+    return target, None
+
+
 class AttackTester:
     """Simple attack tester for Vajra pipeline"""
     
-    def __init__(self, target: str, dry_run: bool = False):
+    def __init__(self, target: str, dry_run: bool = False, port: int = DEFAULT_HTTP_PORT):
         self.target = target
+        self.port = port
         self.dry_run = dry_run
         self.results: List[Tuple[str, str, str]] = []  # (name, status, details)
         self.ml_results = []  # ML prediction results
+    
+    @property
+    def base_url(self) -> str:
+        """Base URL for the HTTP attacks, on the configured HTTP port"""
+        return f"http://{self.target}:{self.port}"
     
     def log(self, attack: str, status: str, details: str = ""):
         """Log attack result"""
@@ -97,7 +131,7 @@ class AttackTester:
                 continue
             
             try:
-                url = f"http://{self.target}/?id={payload}"
+                url = f"{self.base_url}/?id={payload}"
                 requests.get(url, timeout=3)
                 self.log(f"SQLi: {payload[:30]}", "SENT")
             except requests.exceptions.ConnectionError:
@@ -129,7 +163,7 @@ class AttackTester:
                 continue
             
             try:
-                url = f"http://{self.target}/?q={payload}"
+                url = f"{self.base_url}/?q={payload}"
                 requests.get(url, timeout=3)
                 self.log(f"XSS: {payload[:30]}", "SENT")
             except requests.exceptions.ConnectionError:
@@ -161,7 +195,7 @@ class AttackTester:
                 continue
             
             try:
-                url = f"http://{self.target}/file?path={payload}"
+                url = f"{self.base_url}/file?path={payload}"
                 requests.get(url, timeout=3)
                 self.log(f"Traversal: {payload[:30]}", "SENT")
             except requests.exceptions.ConnectionError:
@@ -193,7 +227,7 @@ class AttackTester:
                 continue
             
             try:
-                url = f"http://{self.target}/exec?cmd={payload}"
+                url = f"{self.base_url}/exec?cmd={payload}"
                 requests.get(url, timeout=3)
                 self.log(f"CmdInj: {payload[:30]}", "SENT")
             except requests.exceptions.ConnectionError:
@@ -245,7 +279,7 @@ class AttackTester:
         
         for i in range(count):
             try:
-                requests.get(f"http://{self.target}/?flood={i}", timeout=2)
+                requests.get(f"{self.base_url}/?flood={i}", timeout=2)
                 success += 1
             except requests.exceptions.ConnectionError:
                 blocked += 1
@@ -790,7 +824,7 @@ class AttackTester:
         print("=" * 50)
         print("Vajra Attack Test Suite")
         print("=" * 50)
-        print(f"Target: {self.target}")
+        print(f"Target: {self.target}:{self.port}")
         print(f"Mode: {'SAFE (web only)' if safe_mode else 'FULL (all attacks)'}")
         print(f"Dry Run: {self.dry_run}")
         print("=" * 50)
@@ -899,16 +933,25 @@ Examples:
   # Specify target manually
   python3 tools/attack_simulator.py --target 192.168.1.100 --full
   
+  # Aim the web attacks at an HTTP service on a port other than 80
+  python3 tools/attack_simulator.py --target 127.0.0.1:8080 --sqli
+  
   # Run only SQL injection tests
   python3 tools/attack_simulator.py --sqli
   
   # Run ML insider threat detection
   python3 tools/attack_simulator.py --ml
 
-Note: If --target is not specified, the local IP will be auto-detected.
+Note: If --target is not specified, the local IP will be auto-detected and the
+web attacks go to port 80. The port scan and the SSH bruteforce always use the
+host on their own ports, so a port given here only affects the HTTP attacks.
         """
     )
-    parser.add_argument("--target", required=False, help="Target IP address (auto-detected if not provided)")
+    parser.add_argument(
+        "--target",
+        required=False,
+        help="Target host, optionally with a port (host:port); auto-detected if not provided"
+    )
     parser.add_argument("--safe", action="store_true", help="Safe mode (web attacks only)")
     parser.add_argument("--full", action="store_true", help="Full mode (all attacks)")
     parser.add_argument("--ml", action="store_true", help="ML insider threat detection test (CERT dataset)")
@@ -929,13 +972,14 @@ Note: If --target is not specified, the local IP will be auto-detected.
     
     # Auto-detect target if not provided
     if args.target:
-        target = args.target
-        print(f"Using specified target: {target}")
+        target, port = split_target(args.target)
+        print(f"Using specified target: {target}:{port or DEFAULT_HTTP_PORT}")
     else:
         target = auto_detect_target_ip()
+        port = None
         print(f"Auto-detected target IP: {target}")
     
-    tester = AttackTester(target, dry_run=args.dry_run)
+    tester = AttackTester(target, dry_run=args.dry_run, port=port or DEFAULT_HTTP_PORT)
     
     # Check for individual attack flags
     individual = args.sqli or args.xss or args.traversal or args.cmdi or args.portscan or args.flood or args.ssh or args.ml or args.uba or args.eta
@@ -998,7 +1042,7 @@ Note: If --target is not specified, the local IP will be auto-detected.
         print("=" * 50)
         print("Vajra Attack Test - Individual Tests")
         print("=" * 50)
-        print(f"Target: {target}")
+        print(f"Target: {target}:{tester.port}")
         
         if args.sqli:
             tester.test_sqli()

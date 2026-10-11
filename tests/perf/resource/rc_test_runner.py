@@ -59,6 +59,11 @@ BASELINE_DURATION = 30  # seconds
 LOAD_DURATION = 60  # seconds
 COOLDOWN_DURATION = 10  # seconds
 
+# Target for the load phase. Both the plain HTTP traffic and the attack
+# simulator use it, so the pipeline sees the attacks on the same service it is
+# already being loaded on. start_macos.sh serves the HTTP target here too.
+HTTP_PORT = 8080  # same default as tests/perf/load/ld_test_runner.py
+
 # Attack load
 ATTACK_SIMULATOR = ROOT_DIR / "tools" / "attack_simulator.py"
 ATTACK_SIMULATOR_LOG = LOGS_DIR / "attack_simulator.log"
@@ -86,9 +91,11 @@ def find_python_interpreter() -> str:
     return "python3"
 
 
-def build_attack_command(target: str) -> List[str]:
-    """Build the command that runs tools/attack_simulator.py against target
+def build_attack_command(target_ip: str, target_port: int) -> List[str]:
+    """Build the command that runs tools/attack_simulator.py against a target
 
+    The port is passed as host:port so the simulator's web attacks land on the
+    same service the plain HTTP load uses, instead of defaulting to port 80.
     Every flag comes from ATTACK_SIMULATOR_FLAGS, which must stay in sync with
     the simulator's argparse: an unknown flag makes argparse exit before any
     attack is sent.
@@ -97,7 +104,7 @@ def build_attack_command(target: str) -> List[str]:
         find_python_interpreter(),
         str(ATTACK_SIMULATOR),
         "--target",
-        target,
+        f"{target_ip}:{target_port}",
         *ATTACK_SIMULATOR_FLAGS
     ]
 
@@ -260,8 +267,9 @@ class VajraPipelineManager:
 class LoadSimulator:
     """Simulates realistic network traffic and attacks"""
     
-    def __init__(self, target_ip: str = "127.0.0.1"):
+    def __init__(self, target_ip: str = "127.0.0.1", target_port: int = HTTP_PORT):
         self.target_ip = target_ip
+        self.target_port = target_port
         self.running = False
         self.threads = []
     
@@ -271,11 +279,12 @@ class LoadSimulator:
         
         end_time = time.time() + duration
         count = 0
+        url = f"http://{self.target_ip}:{self.target_port}"
         
         while time.time() < end_time and self.running:
             try:
                 # Make HTTP requests
-                urllib.request.urlopen(f"http://{self.target_ip}:8080", timeout=1)
+                urllib.request.urlopen(url, timeout=1)
                 count += 1
             except:
                 pass
@@ -294,7 +303,7 @@ class LoadSimulator:
             log(f"Attack simulator not found at {ATTACK_SIMULATOR}", "WARNING")
             return
         
-        command = build_attack_command(self.target_ip)
+        command = build_attack_command(self.target_ip, self.target_port)
         end_time = time.time() + duration
         runs = 0
         failures = 0

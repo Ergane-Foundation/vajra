@@ -194,6 +194,20 @@ All detailed logs are saved in `tests/perf/resource/logs/`:
 
 ## Customization
 
+### Change the Target
+
+The plain HTTP traffic and the attack simulator share one target, so the
+pipeline is loaded and attacked on the same service:
+
+```python
+HTTP_PORT = 8080  # module level, also the default for LoadSimulator
+```
+
+`build_attack_command()` passes this to the simulator as `host:port`, and the
+simulator uses the port for its web attacks while the port scan and the SSH
+bruteforce keep connecting to the bare host on their own ports. `start_macos.sh`
+serves the HTTP target here too.
+
 ### Modify Test Duration
 
 Edit `rc_test_runner.py` and change these constants:
@@ -275,8 +289,8 @@ sudo python3 ../../tools/attack_simulator.py --help
 ```
 If the load phase reports passes but the numbers under load match the baseline,
 the attacks are going somewhere the pipeline is not watching. Confirm the
-target: the simulator builds `http://<target>/...`, so `--target 127.0.0.1` sends
-to the default HTTP port rather than to a service on 8080.
+target and the port: both load generators use `HTTP_PORT`, and a mismatch there
+sends the attacks to a different service than the plain traffic.
 
 ## Advanced Usage
 

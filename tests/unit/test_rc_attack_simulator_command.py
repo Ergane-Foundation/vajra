@@ -9,7 +9,9 @@ against the real simulator, so a flag that does not exist fails here.
 import importlib.util
 import subprocess
 import sys
+import threading
 import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -30,6 +32,20 @@ def _load_runner():
 rc = _load_runner()
 
 
+def _load_attack_simulator():
+    """Import the simulator, which prepends src to sys.path on import"""
+    sys.path.insert(0, str(REPO_ROOT / "src"))
+    spec = importlib.util.spec_from_file_location(
+        "attack_simulator", REPO_ROOT / "tools" / "attack_simulator.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+attack_simulator = _load_attack_simulator()
+
+
 def _dry_run(command):
     """Run the harness command safely, with the local interpreter"""
     runnable = list(command)
@@ -46,25 +62,56 @@ def _dry_run(command):
 
 
 def test_attack_command_targets_the_simulator():
-    command = rc.build_attack_command("192.0.2.10")
+    command = rc.build_attack_command("192.0.2.10", 8080)
 
     assert command[1] == str(rc.ATTACK_SIMULATOR)
-    assert command[2:4] == ["--target", "192.0.2.10"]
+    assert command[2:4] == ["--target", "192.0.2.10:8080"]
     assert "--quick" not in command
 
 
+def test_attack_command_uses_the_same_port_as_the_http_load():
+    simulator = rc.LoadSimulator()
+    command = rc.build_attack_command(simulator.target_ip, simulator.target_port)
+
+    assert command[2:4] == ["--target", f"{simulator.target_ip}:{simulator.target_port}"]
+    assert simulator.target_port == rc.HTTP_PORT
+
+
 def test_attack_command_is_accepted_by_the_simulator():
-    result = _dry_run(rc.build_attack_command("127.0.0.1"))
+    result = _dry_run(rc.build_attack_command("127.0.0.1", 8080))
 
     assert "unrecognized arguments" not in result.stderr
     assert result.returncode == 0, result.stderr
 
 
 def test_attack_command_reaches_the_attack_suite():
-    result = _dry_run(rc.build_attack_command("127.0.0.1"))
+    result = _dry_run(rc.build_attack_command("127.0.0.1", 8080))
 
     assert "[SQL Injection Tests]" in result.stdout
     assert "[XSS Tests]" in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("target", "expected"),
+    [
+        ("192.168.1.100", ("192.168.1.100", None)),
+        ("127.0.0.1:8080", ("127.0.0.1", 8080)),
+        ("::1", ("::1", None)),
+        ("[::1]:8080", ("[::1]", 8080)),
+        ("[::1]", ("[::1]", None)),
+        ("example.com:not-a-port", ("example.com:not-a-port", None)),
+    ],
+)
+def test_simulator_splits_host_and_port(target, expected):
+    assert attack_simulator.split_target(target) == expected
+
+
+def test_simulator_uses_the_configured_port_for_http_attacks():
+    tester = attack_simulator.AttackTester("127.0.0.1", dry_run=True, port=8080)
+
+    assert tester.target == "127.0.0.1"
+    assert tester.port == 8080
+    assert tester.base_url == "http://127.0.0.1:8080"
 
 
 @pytest.fixture
@@ -83,7 +130,7 @@ def _use_fake_simulator(monkeypatch, tmp_path, script):
     monkeypatch.setattr(
         rc,
         "build_attack_command",
-        lambda target: [sys.executable, "-c", f"open({str(passes_file)!r}, 'a').write('x')\n{script}"],
+        lambda target_ip, target_port: [sys.executable, "-c", f"open({str(passes_file)!r}, 'a').write('x')\n{script}"],
     )
     return passes_file
 
@@ -138,3 +185,45 @@ def test_attack_pass_is_killed_when_load_is_stopped(tmp_path, monkeypatch):
         )
 
     assert returncode is None
+
+
+def test_http_and_attack_load_reach_the_same_target(monkeypatch, tmp_path):
+    """Drive the whole LoadSimulator path against one target and port
+
+    The plain HTTP traffic and the attack simulator have to arrive on the same
+    host and port, otherwise the pipeline is loaded on one service and attacked
+    on another and the load phase measures the wrong thing.
+    """
+    received = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            received.append(self.path)
+            self.send_response(200)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    try:
+        monkeypatch.setattr(rc, "find_python_interpreter", lambda: sys.executable)
+        monkeypatch.setattr(rc, "ATTACK_SIMULATOR_LOG", tmp_path / "attack_simulator.log")
+
+        simulator = rc.LoadSimulator(target_ip="127.0.0.1", target_port=port)
+        simulator.running = True
+        simulator.generate_http_traffic(1)
+        simulator.generate_attack_traffic(4)
+    finally:
+        server.shutdown()
+
+    plain = [p for p in received if p == "/"]
+    attacks = [p for p in received if p.startswith("/?id=")]
+
+    assert plain, "no plain HTTP traffic reached the target"
+    assert attacks, "no attack traffic reached the target"
