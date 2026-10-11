@@ -55,6 +55,17 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Platform Guard
+# This installer targets Linux package managers (apt/dnf/yum/pacman). On macOS
+# users should run scripts/start_macos.sh instead, otherwise the package
+# manager detection below falls through to a confusing "No supported package
+# manager found" error.
+if [ "$(uname -s)" = "Darwin" ]; then
+    echo -e "${RED}ERROR: This Linux installer is not supported on macOS.${NC}"
+    echo -e "Use ${CYAN}sudo ./scripts/start_macos.sh${NC} to run Vajra on macOS instead."
+    exit 1
+fi
+
 # Detect Package Manager
 if command -v apt-get &> /dev/null; then
     PKG_MANAGER="apt-get"
