@@ -728,7 +728,18 @@ class SOAREngine:
             logger.info(f"Waiting for {eve_path}...")
             time.sleep(2)
         
-        last_position = eve_file.stat().st_size
+        # Skip complete existing records, but retain an unfinished final record.
+        with open(eve_file, "rb") as f:
+            last_position = f.seek(0, os.SEEK_END)
+            while last_position:
+                block_start = max(0, last_position - 8192)
+                f.seek(block_start)
+                block = f.read(last_position - block_start)
+                newline = block.rfind(b"\n")
+                if newline != -1:
+                    last_position = block_start + newline + 1
+                    break
+                last_position = block_start
         
         try:
             while True:
@@ -738,13 +749,19 @@ class SOAREngine:
                     last_position = 0
                 
                 if current_size > last_position:
-                    with open(eve_file, 'r') as f:
+                    with open(eve_file, "rb") as f:
                         f.seek(last_position)
                         
-                        for line in f:
+                        while True:
+                            line = f.readline()
+                            if not line.endswith(b"\n"):
+                                # Retry these bytes on the next poll, before parsing.
+                                break
+                            last_position = f.tell()
+
                             try:
                                 event = json.loads(line.strip())
-                            except json.JSONDecodeError as exc:
+                            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
                                 self.malformed_lines += 1
                                 logger.debug(
                                     "Skipping malformed JSON in %s (malformed lines: %d): %s",
@@ -770,7 +787,6 @@ class SOAREngine:
                                     eve_path
                                 )
                         
-                        last_position = f.tell()
                 
                 time.sleep(0.1)
                 
