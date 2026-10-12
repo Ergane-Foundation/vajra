@@ -33,7 +33,6 @@ def setup_logging(
         logging.Logger: The configured logger instance.
     """
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
-    Path("logs").mkdir(parents=True, exist_ok=True)
 
     if log_file is None:
         target_path = LOGS_DIR / f"{name}.log"
@@ -53,19 +52,14 @@ def setup_logging(
     file_handler = logging.FileHandler(str(target_path))
     file_handler.setFormatter(logging.Formatter(fmt))
 
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(logging.Formatter(fmt))
+
     logger = logging.getLogger(name)
     logger.setLevel(level)
     if not any(isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) == str(target_path) for h in logger.handlers):
         logger.addHandler(file_handler)
-
-    logging.basicConfig(
-        level=level,
-        format=fmt,
-        handlers=[
-            logging.StreamHandler(),
-            file_handler,
-        ],
-        force=True,
-    )
+    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+        logger.addHandler(stream_handler)
 
     return logger
