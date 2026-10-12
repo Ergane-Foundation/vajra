@@ -275,10 +275,12 @@ class LoadSimulator:
     
     def generate_http_traffic(self, duration: int):
         """Generate HTTP traffic"""
+        import urllib.error
         import urllib.request
         
         end_time = time.time() + duration
         count = 0
+        failures = 0
         url = f"http://{self.target_ip}:{self.target_port}"
         
         while time.time() < end_time and self.running:
@@ -286,11 +288,18 @@ class LoadSimulator:
                 # Make HTTP requests
                 urllib.request.urlopen(url, timeout=1)
                 count += 1
-            except:
-                pass
+            except urllib.error.HTTPError:
+                # A response of any status still means the request reached the service
+                count += 1
+            except OSError:
+                # Connection refused, timeout or a name that does not resolve
+                failures += 1
             time.sleep(0.1)
         
-        log(f"Generated {count} HTTP requests")
+        if count:
+            log(f"Generated {count} HTTP requests to {url} ({failures} failed)")
+        else:
+            log(f"No HTTP traffic reached {url} ({failures} failed)", "WARNING")
     
     def generate_attack_traffic(self, duration: int):
         """Simulate attack traffic using tools/attack_simulator.py

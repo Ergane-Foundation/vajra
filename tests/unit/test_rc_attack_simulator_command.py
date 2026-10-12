@@ -19,6 +19,13 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNNER_PATH = REPO_ROOT / "tests" / "perf" / "resource" / "rc_test_runner.py"
 
+# The paths the simulator's web attacks use, so the test can tell an attack
+# apart from the plain HTTP load
+ATTACK_PATH_PREFIXES = ("/?id=", "/?q=", "/file?path=", "/exec?cmd=")
+# Starting the simulator imports the vajra package, which takes a couple of
+# seconds and varies by machine, so wait on delivery rather than on a timer
+ATTACK_DELIVERY_TIMEOUT = 120
+
 
 def _load_runner():
     """Import rc_test_runner, which needs psutil and lives outside the package"""
@@ -96,14 +103,47 @@ def test_attack_command_reaches_the_attack_suite():
     [
         ("192.168.1.100", ("192.168.1.100", None)),
         ("127.0.0.1:8080", ("127.0.0.1", 8080)),
+        ("127.0.0.1:1", ("127.0.0.1", 1)),
         ("::1", ("::1", None)),
         ("[::1]:8080", ("[::1]", 8080)),
         ("[::1]", ("[::1]", None)),
-        ("example.com:not-a-port", ("example.com:not-a-port", None)),
     ],
 )
 def test_simulator_splits_host_and_port(target, expected):
     assert attack_simulator.split_target(target) == expected
+
+
+@pytest.mark.parametrize(
+    ("target", "message"),
+    [
+        ("example.com:not-a-port", "non-numeric port"),
+        ("example.com:", "trailing ':' with no port"),
+        ("[::1]:", "trailing ':' with no port"),
+        ("[::1]:abc", "non-numeric port"),
+        ("127.0.0.1:0", "outside 1-65535"),
+        ("127.0.0.1:70000", "outside 1-65535"),
+        ("[::1", "no closing ']'"),
+        ("[::1]junk", "after the IPv6 literal"),
+    ],
+)
+def test_simulator_rejects_unusable_targets(target, message):
+    with pytest.raises(ValueError, match=message):
+        attack_simulator.split_target(target)
+
+
+def test_simulator_reports_an_unusable_target_without_a_traceback():
+    result = subprocess.run(
+        [sys.executable, str(rc.ATTACK_SIMULATOR), "--target", "example.com:not-a-port", "--sqli"],
+        cwd=str(rc.ROOT_DIR),
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "non-numeric port" in result.stderr
+    assert "Traceback" not in result.stderr
 
 
 def test_simulator_uses_the_configured_port_for_http_attacks():
@@ -187,18 +227,83 @@ def test_attack_pass_is_killed_when_load_is_stopped(tmp_path, monkeypatch):
     assert returncode is None
 
 
+def _serve(status=200):
+    """Start a local HTTP server on an ephemeral port and return it with its hits"""
+    received = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            received.append(self.path)
+            self.send_response(status)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, received
+
+
+def test_http_load_counts_requests_to_the_target(recorded_logs):
+    server, received = _serve()
+    try:
+        simulator = rc.LoadSimulator(target_ip="127.0.0.1", target_port=server.server_address[1])
+        simulator.running = True
+        simulator.generate_http_traffic(1)
+    finally:
+        server.shutdown()
+
+    assert received, "no requests reached the target"
+    assert any(level == "INFO" and "HTTP requests to" in msg for level, msg in recorded_logs)
+
+
+def test_http_load_counts_a_server_error_as_delivered(recorded_logs):
+    """A load generator only needs the request to arrive, whatever the status"""
+    server, received = _serve(status=503)
+    try:
+        simulator = rc.LoadSimulator(target_ip="127.0.0.1", target_port=server.server_address[1])
+        simulator.running = True
+        simulator.generate_http_traffic(1)
+    finally:
+        server.shutdown()
+
+    assert received
+    assert any(level == "INFO" and "HTTP requests to" in msg for level, msg in recorded_logs)
+
+
+def test_http_load_reports_an_unreachable_target(recorded_logs):
+    """Nothing is listening on port 1, so every request fails"""
+    simulator = rc.LoadSimulator(target_ip="127.0.0.1", target_port=1)
+    simulator.running = True
+    simulator.generate_http_traffic(1)
+
+    assert any(
+        level == "WARNING" and "No HTTP traffic reached" in msg for level, msg in recorded_logs
+    )
+
+
 def test_http_and_attack_load_reach_the_same_target(monkeypatch, tmp_path):
     """Drive the whole LoadSimulator path against one target and port
 
     The plain HTTP traffic and the attack simulator have to arrive on the same
     host and port, otherwise the pipeline is loaded on one service and attacked
     on another and the load phase measures the wrong thing.
+
+    The wait is for the first attack request rather than for a fixed slice of
+    time: the simulator needs a couple of seconds to start before it sends
+    anything, and how long that takes depends on the machine.
     """
     received = []
+    first_attack = threading.Event()
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             received.append(self.path)
+            if self.path.startswith(ATTACK_PATH_PREFIXES):
+                first_attack.set()
             self.send_response(200)
             self.send_header("Content-Length", "2")
             self.end_headers()
@@ -211,19 +316,28 @@ def test_http_and_attack_load_reach_the_same_target(monkeypatch, tmp_path):
     port = server.server_address[1]
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
-    try:
-        monkeypatch.setattr(rc, "find_python_interpreter", lambda: sys.executable)
-        monkeypatch.setattr(rc, "ATTACK_SIMULATOR_LOG", tmp_path / "attack_simulator.log")
+    monkeypatch.setattr(rc, "find_python_interpreter", lambda: sys.executable)
+    monkeypatch.setattr(rc, "ATTACK_SIMULATOR_LOG", tmp_path / "attack_simulator.log")
 
-        simulator = rc.LoadSimulator(target_ip="127.0.0.1", target_port=port)
-        simulator.running = True
-        simulator.generate_http_traffic(1)
-        simulator.generate_attack_traffic(4)
+    simulator = rc.LoadSimulator(target_ip="127.0.0.1", target_port=port)
+    simulator.running = True
+    simulator.generate_http_traffic(1)
+
+    # A long load window, ended as soon as an attack lands rather than on a timer
+    attack_thread = threading.Thread(
+        target=simulator.generate_attack_traffic, args=(300,), daemon=True
+    )
+    attack_thread.start()
+    try:
+        delivered = first_attack.wait(timeout=ATTACK_DELIVERY_TIMEOUT)
     finally:
+        simulator.running = False
+        attack_thread.join(timeout=30)
         server.shutdown()
 
     plain = [p for p in received if p == "/"]
-    attacks = [p for p in received if p.startswith("/?id=")]
+    attacks = [p for p in received if p.startswith(ATTACK_PATH_PREFIXES)]
 
     assert plain, "no plain HTTP traffic reached the target"
+    assert delivered, f"no attack traffic reached the target within {ATTACK_DELIVERY_TIMEOUT}s"
     assert attacks, "no attack traffic reached the target"
