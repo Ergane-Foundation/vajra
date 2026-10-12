@@ -15,12 +15,17 @@ Usage:
     ip = get_local_ip()                 # '192.168.1.100'
 """
 
+import ipaddress
+import logging
 import subprocess
 import socket
 import re
 import os
 import sys
-from typing import Optional, Tuple, Dict
+from pathlib import Path
+from typing import Optional, Tuple, Dict, List
+
+logger = logging.getLogger(__name__)
 
 def run_command(cmd: str) -> str:
     """Run a shell command and return output"""
@@ -200,6 +205,35 @@ def get_all_network_info() -> Dict[str, str]:
     }
 
 
+def build_allowlist(extra: Optional[List[str]] = None) -> list:
+    """Networks that must never be blocked: loopback, this host, its gateway and DNS resolvers"""
+    entries = ["127.0.0.0/8", "::1/128"] + list(extra or [])
+    env = os.environ.get("VAJRA_ALLOWLIST", "")
+    entries += [e.strip() for e in env.split(",") if e.strip()]
+    try:
+        entries += [get_local_ip(), get_gateway_ip()]
+    except Exception as e:
+        logger.warning(f"Could not detect local addresses for the allowlist: {e}")
+    try:
+        for line in Path("/etc/resolv.conf").read_text().splitlines():
+            parts = line.split()
+            if len(parts) >= 2 and parts[0] == "nameserver":
+                entries.append(parts[1])
+    except OSError:
+        pass
+
+    networks = []
+    for entry in entries:
+        try:
+            network = ipaddress.ip_network(entry, strict=False)
+        except ValueError:
+            logger.warning(f"Ignoring invalid allowlist entry: {entry}")
+            continue
+        if network not in networks:
+            networks.append(network)
+    return networks
+
+
 def print_network_info():
     """Print network information"""
     info = get_all_network_info()
@@ -223,8 +257,10 @@ if __name__ == "__main__":
             print(get_network_cidr())
         elif cmd == 'all':
             print_network_info()
+        elif cmd == 'allowlist':
+            print(",".join(str(n) for n in build_allowlist()))
         else:
             print(f"Unknown command: {cmd}")
-            print("Usage: python3 -m vajra.common.network [interface|ip|gateway|network|all]")
+            print("Usage: python3 -m vajra.common.network [interface|ip|gateway|network|all|allowlist]")
     else:
         print_network_info()
