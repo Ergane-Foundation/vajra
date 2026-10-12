@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 
+from vajra.common.network import build_allowlist
+
 # Kafka imports
 try:
     from confluent_kafka import Consumer, KafkaError  # type: ignore
@@ -87,7 +89,7 @@ class FirewallManager:
     def __init__(self, dry_run: bool = False, allowlist: Optional[List[str]] = None):
         self.dry_run = dry_run
         self.backend = self._detect_backend()
-        self.allowlist = self._build_allowlist(allowlist or [])
+        self.allowlist = build_allowlist(allowlist)
         self.blocked_ips_file = Path("logs/blocked_ips.txt")
         self.blocked_ips = self._load_blocked_ips()
         logger.info(f"Firewall backend: {self.backend}" + (" (dry run)" if dry_run else ""))
@@ -97,35 +99,6 @@ class FirewallManager:
     def enforcing(self) -> bool:
         """True when blocks are actually applied to the host firewall"""
         return not self.dry_run and self.backend != "none"
-
-    def _build_allowlist(self, extra: List[str]) -> list:
-        """Networks that must never be blocked: loopback, this host, its gateway and DNS resolvers"""
-        entries = ["127.0.0.0/8", "::1/128"] + list(extra)
-        env = os.environ.get("VAJRA_ALLOWLIST", "")
-        entries += [e.strip() for e in env.split(",") if e.strip()]
-        try:
-            from vajra.common.network import get_local_ip, get_gateway_ip
-            entries += [get_local_ip(), get_gateway_ip()]
-        except Exception as e:
-            logger.warning(f"Could not detect local addresses for the allowlist: {e}")
-        try:
-            for line in Path("/etc/resolv.conf").read_text().splitlines():
-                parts = line.split()
-                if len(parts) >= 2 and parts[0] == "nameserver":
-                    entries.append(parts[1])
-        except OSError:
-            pass
-
-        networks = []
-        for entry in entries:
-            try:
-                network = ipaddress.ip_network(entry, strict=False)
-            except ValueError:
-                logger.warning(f"Ignoring invalid allowlist entry: {entry}")
-                continue
-            if network not in networks:
-                networks.append(network)
-        return networks
 
     def is_allowlisted(self, ip: str) -> bool:
         """Check whether an IP falls inside the allowlist"""
