@@ -61,6 +61,19 @@ except ImportError as e:
 
 
 DEFAULT_HTTP_PORT = 80
+MAX_PORT = 65535
+
+
+def _parse_port(raw: str, target: str) -> int:
+    """Parse the port part of a target, or say why it cannot be one"""
+    if not raw:
+        raise ValueError(f"target {target!r} has a trailing ':' with no port after it")
+    if not raw.isdigit():
+        raise ValueError(f"target {target!r} has a non-numeric port {raw!r}")
+    port = int(raw)
+    if not 1 <= port <= MAX_PORT:
+        raise ValueError(f"target {target!r} has port {port} outside 1-{MAX_PORT}")
+    return port
 
 
 def split_target(target: str) -> Tuple[str, Optional[int]]:
@@ -72,19 +85,25 @@ def split_target(target: str) -> Tuple[str, Optional[int]]:
     the SSH bruteforce connect to the bare host on their own ports, so keeping
     the host separate means they are unaffected by it.
 
-    Returns the port as None when the target does not carry one.
+    Returns the port as None when the target does not carry one. Raises
+    ValueError when the target carries something that cannot be a port, rather
+    than passing it through and failing later with a DNS or connection error.
     """
     if target.startswith("["):
         host, bracket, rest = target.partition("]")
-        if bracket and rest.startswith(":"):
-            return f"{host}]", int(rest[1:])
-        return target, None
+        if not bracket:
+            raise ValueError(f"target {target!r} opens with '[' but has no closing ']'")
+        if not rest:
+            return f"{host}]", None
+        if not rest.startswith(":"):
+            raise ValueError(f"target {target!r} has trailing {rest!r} after the IPv6 literal")
+        return f"{host}]", _parse_port(rest[1:], target)
 
     if target.count(":") == 1:
         host, _, port = target.partition(":")
-        if port.isdigit():
-            return host, int(port)
+        return host, _parse_port(port, target)
 
+    # A bare host, or a bare IPv6 literal such as ::1
     return target, None
 
 
@@ -972,7 +991,10 @@ host on their own ports, so a port given here only affects the HTTP attacks.
     
     # Auto-detect target if not provided
     if args.target:
-        target, port = split_target(args.target)
+        try:
+            target, port = split_target(args.target)
+        except ValueError as e:
+            parser.error(str(e))
         print(f"Using specified target: {target}:{port or DEFAULT_HTTP_PORT}")
     else:
         target = auto_detect_target_ip()
