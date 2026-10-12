@@ -97,7 +97,8 @@ if [ "$PKG_MANAGER" = "apt-get" ]; then
         build-essential libffi-dev libssl-dev \
         curl wget git jq \
         net-tools iptables iproute2 \
-        libpcap-dev tcpdump
+        libpcap-dev tcpdump \
+        software-properties-common
 elif [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
     $INSTALL_CMD \
         python3 python3-pip python3-devel \
@@ -127,7 +128,8 @@ fi
 
 if [ "$PKG_MANAGER" = "apt-get" ]; then
     # Add Suricata PPA for latest version
-    add-apt-repository -y ppa:oisf/suricata-stable 2>/dev/null || true
+    add-apt-repository -y ppa:oisf/suricata-stable 2>/dev/null || \
+        echo -e "${YELLOW}  [WARN] Could not add the Suricata PPA, installing the distribution's Suricata instead${NC}"
     apt-get update
     apt-get install -y suricata
     # The PPA build ships suricata-update itself; the separate package conflicts with it
