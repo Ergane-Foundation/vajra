@@ -535,8 +535,8 @@ class SOAREngine:
     
     def should_block(self, alert: Dict[str, Any]) -> bool:
         """Determine if alert should trigger a block"""
-        severity = alert.get("severity", "LOW")
-        signature = alert.get("signature", "").lower()
+        severity = alert.get("severity") or "LOW"
+        signature = (alert.get("signature") or "").lower()
         
         # Always block critical/high severity
         if severity in ("CRITICAL", "HIGH"):
