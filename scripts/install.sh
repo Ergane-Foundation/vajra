@@ -180,9 +180,14 @@ if [ "$MINIMAL_INSTALL" = "false" ]; then
     
     if [ ! -d "$KAFKA_DIR" ]; then
         cd /tmp
-        wget -q "https://downloads.apache.org/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz" -O kafka.tgz 2>/dev/null || \
-        wget -q "https://archive.apache.org/dist/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz" -O kafka.tgz 2>/dev/null || \
-        echo -e "${YELLOW}  [WARN] Kafka download failed (optional, system will work without it)${NC}"
+        # downloads.apache.org only keeps current releases, so this version normally comes from the slower archive
+        wget -q "https://downloads.apache.org/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz" -O kafka.tgz 2>/dev/null || {
+            echo "  Downloading Kafka ${KAFKA_VERSION} from archive.apache.org, this can take several minutes..."
+            wget --progress=dot:mega --timeout=60 --tries=3 "https://archive.apache.org/dist/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz" -O kafka.tgz
+        } || {
+            rm -f kafka.tgz
+            echo -e "${YELLOW}  [WARN] Kafka download failed (optional, system will work without it)${NC}"
+        }
         
         if [ -f kafka.tgz ]; then
             tar -xzf kafka.tgz
