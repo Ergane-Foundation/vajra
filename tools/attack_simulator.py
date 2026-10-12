@@ -153,8 +153,8 @@ class AttackTester:
                 url = f"{self.base_url}/?id={payload}"
                 requests.get(url, timeout=3)
                 self.log(f"SQLi: {payload[:30]}", "SENT")
-            except requests.exceptions.ConnectionError:
-                self.log(f"SQLi: {payload[:30]}", "BLOCKED", "Connection refused")
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                self.log(f"SQLi: {payload[:30]}", "BLOCKED", type(e).__name__)
             except Exception as e:
                 self.log(f"SQLi: {payload[:30]}", "ERROR", str(e)[:50])
             
@@ -185,8 +185,8 @@ class AttackTester:
                 url = f"{self.base_url}/?q={payload}"
                 requests.get(url, timeout=3)
                 self.log(f"XSS: {payload[:30]}", "SENT")
-            except requests.exceptions.ConnectionError:
-                self.log(f"XSS: {payload[:30]}", "BLOCKED", "Connection refused")
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                self.log(f"XSS: {payload[:30]}", "BLOCKED", type(e).__name__)
             except Exception as e:
                 self.log(f"XSS: {payload[:30]}", "ERROR", str(e)[:50])
             
@@ -217,8 +217,8 @@ class AttackTester:
                 url = f"{self.base_url}/file?path={payload}"
                 requests.get(url, timeout=3)
                 self.log(f"Traversal: {payload[:30]}", "SENT")
-            except requests.exceptions.ConnectionError:
-                self.log(f"Traversal: {payload[:30]}", "BLOCKED", "Connection refused")
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                self.log(f"Traversal: {payload[:30]}", "BLOCKED", type(e).__name__)
             except Exception as e:
                 self.log(f"Traversal: {payload[:30]}", "ERROR", str(e)[:50])
             
@@ -249,8 +249,8 @@ class AttackTester:
                 url = f"{self.base_url}/exec?cmd={payload}"
                 requests.get(url, timeout=3)
                 self.log(f"CmdInj: {payload[:30]}", "SENT")
-            except requests.exceptions.ConnectionError:
-                self.log(f"CmdInj: {payload[:30]}", "BLOCKED", "Connection refused")
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                self.log(f"CmdInj: {payload[:30]}", "BLOCKED", type(e).__name__)
             except Exception as e:
                 self.log(f"CmdInj: {payload[:30]}", "ERROR", str(e)[:50])
             
@@ -300,7 +300,7 @@ class AttackTester:
             try:
                 requests.get(f"{self.base_url}/?flood={i}", timeout=2)
                 success += 1
-            except requests.exceptions.ConnectionError:
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
                 blocked += 1
             except:
                 pass
