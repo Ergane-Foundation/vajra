@@ -23,15 +23,9 @@ except ImportError:
     KAFKA_AVAILABLE = False
     print("Warning: confluent_kafka not installed. Run: pip install confluent_kafka")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/kafka_bridge.log')
-    ]
-)
-logger = logging.getLogger("kafka_bridge")
+from vajra.common.logging import setup_logging
+
+logger = setup_logging("kafka_bridge", "logs/kafka_bridge.log")
 
 
 class KafkaBridge:

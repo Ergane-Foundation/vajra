@@ -32,18 +32,9 @@ except ImportError:
     np = None
 
 # Create logs directory
-Path("logs").mkdir(exist_ok=True)
+from vajra.common.logging import setup_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/etbert_engine.log')
-    ]
-)
-
-logger = logging.getLogger("etbert_engine")
+logger = setup_logging("etbert_engine", "logs/etbert_engine.log")
 
 
 @dataclass

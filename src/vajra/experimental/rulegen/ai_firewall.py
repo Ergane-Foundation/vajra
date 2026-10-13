@@ -68,16 +68,9 @@ GEMINI_MODEL_NAME = "gemini-2.5-flash"
 RULE_SID_START = 1000001
 RULE_GENERATION_TIMEOUT = 30  # seconds
 
-# Setup Logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/ai_firewall_updater.log')
-    ]
-)
-logger = logging.getLogger("ai_firewall_updater")
+from vajra.common.logging import setup_logging
+
+logger = setup_logging("ai_firewall_updater", "logs/ai_firewall_updater.log", format_str="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
 
 # ENUMS & DATA CLASSES

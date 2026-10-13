@@ -35,18 +35,9 @@ except ImportError:
     np = None
 
 # Create logs directory
-Path("logs").mkdir(exist_ok=True)
+from vajra.common.logging import setup_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/stratosphere_engine.log')
-    ]
-)
-
-logger = logging.getLogger("stratosphere_engine")
+logger = setup_logging("stratosphere_engine", "logs/stratosphere_engine.log")
 
 
 @dataclass

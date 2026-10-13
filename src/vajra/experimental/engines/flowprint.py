@@ -41,18 +41,9 @@ except ImportError:
     SKLEARN_AVAILABLE = False
 
 # Create logs directory
-Path("logs").mkdir(exist_ok=True)
+from vajra.common.logging import setup_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/flowprint_engine.log')
-    ]
-)
-
-logger = logging.getLogger("flowprint_engine")
+logger = setup_logging("flowprint_engine", "logs/flowprint_engine.log")
 
 
 @dataclass

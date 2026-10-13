@@ -39,16 +39,9 @@ import flwr as fl
 from flwr.server.strategy import FedAvg
 from flwr.common import Metrics
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/fl_server.log')
-    ]
-)
-logger = logging.getLogger("fl_server")
+from vajra.common.logging import setup_logging
+
+logger = setup_logging("fl_server", "logs/fl_server.log", format_str="%(asctime)s [%(levelname)s] [%(name)s] %(message)s")
 
 # Model configurations
 MODEL_CONFIGS = {
