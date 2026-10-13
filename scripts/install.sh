@@ -60,9 +60,27 @@ fi
 # users should run scripts/start_macos.sh instead, otherwise the package
 # manager detection below falls through to a confusing "No supported package
 # manager found" error.
+# Refuse to run on macOS: this script installs Linux-only packages via
+# apt/dnf/yum/pacman. On macOS, start_macos.sh performs its own dependency
+# check (Suricata via `brew install suricata`, python3) directly and does
+# NOT call this script, so reaching this branch means the user invoked
+# install.sh manually. Point them at start_macos.sh instead. See issue #29.
 if [ "$(uname -s)" = "Darwin" ]; then
     echo -e "${RED}ERROR: This Linux installer is not supported on macOS.${NC}"
-    echo -e "Use ${CYAN}sudo ./scripts/start_macos.sh${NC} to run Vajra on macOS instead."
+    echo ""
+    echo "Detected OS: macOS (Darwin). This script installs apt/dnf/yum/pacman"
+    echo "packages that are not available on macOS, and running it here would"
+    echo "leave your system in a half-configured state."
+    echo ""
+    echo "On macOS, use the platform-specific launcher which checks for the"
+    echo "required dependencies directly:"
+    echo ""
+    echo "  sudo ./scripts/start_macos.sh"
+    echo ""
+    echo "If start_macos.sh reports a missing dependency, install it with"
+    echo "Homebrew (e.g. \`brew install suricata\`) and re-run."
+    echo ""
+    echo "Aborting before any package is touched."
     exit 1
 fi
 

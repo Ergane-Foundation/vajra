@@ -38,15 +38,43 @@ if [ "$FIRST_RUN" = true ]; then
     echo "First run detected - performing initial setup..."
     echo "================================================================"
     
-    # Step 1: Run install.sh
+    # Step 1: macOS dependency check (do NOT call install.sh — it is
+    # Linux-only and exits 1 on Darwin, which would abort start_macos.sh
+    # immediately under `set -e` before we ever reach the venv setup).
+    # See issue #29.
     echo ""
-    echo "[Setup 1/4] Running install.sh..."
-    if [ -f "scripts/install.sh" ]; then
-        chmod +x scripts/install.sh
-        ./scripts/install.sh
-        echo "[OK] install.sh completed"
+    echo "[Setup 1/4] Checking macOS dependencies..."
+    MISSING_DEPS=()
+
+    # Suricata is the one hard macOS-side dependency this script relies on
+    # for IDS mode (Suricata is started unconditionally in [2/8] below).
+    # The Linux installer handles it via apt/dnf/yum/pacman; on macOS the
+    # canonical install path is Homebrew, so we check and prompt for that
+    # explicitly instead of delegating to install.sh.
+    if ! command -v suricata &> /dev/null; then
+        MISSING_DEPS+=("suricata")
+        echo -e "${RED}  [MISSING] suricata not found on PATH${NC}"
+        echo -e "${YELLOW}            Install it with: brew install suricata${NC}"
     else
-        echo "[WARN] install.sh not found, skipping..."
+        echo -e "${GREEN}  [OK] suricata: $(command -v suricata) ($(suricata -V 2>/dev/null | head -1))${NC}"
+    fi
+
+    # Python 3 is required for everything else below (venv creation, running
+    # the pipeline modules). Bail out with a clear message if missing.
+    if ! command -v python3 &> /dev/null; then
+        MISSING_DEPS+=("python3")
+        echo -e "${RED}  [MISSING] python3 not found on PATH${NC}"
+        echo -e "${YELLOW}            Install it from https://www.python.org/downloads/macos/ or via brew install python${NC}"
+    else
+        echo -e "${GREEN}  [OK] python3: $(python3 --version 2>&1)${NC}"
+    fi
+
+    if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+        echo ""
+        echo -e "${RED}ERROR: Missing macOS dependencies: ${MISSING_DEPS[*]}${NC}"
+        echo -e "${YELLOW}Install the missing package(s) above and re-run: sudo ./scripts/start_macos.sh${NC}"
+        echo -e "${YELLOW}Aborting before any service is started.${NC}"
+        exit 1
     fi
     
     # Step 2: Run setup_venv.sh
