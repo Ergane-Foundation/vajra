@@ -13,8 +13,8 @@ def host(monkeypatch):
     """Fixed host addresses and no resolver files, so results do not depend on this machine."""
     monkeypatch.setattr(network, "get_local_ip", lambda: "192.0.2.10")
     monkeypatch.setattr(network, "get_gateway_ip", lambda: "192.0.2.1")
-    monkeypatch.setattr(network, "get_local_addresses", lambda: [])
-    monkeypatch.setattr(network, "get_default_gateways", lambda: [])
+    monkeypatch.setattr(network, "get_local_addresses", list)
+    monkeypatch.setattr(network, "get_default_gateways", list)
     monkeypatch.setattr(network, "RESOLV_CONF_FILES", ())
     monkeypatch.delenv("VAJRA_ALLOWLIST", raising=False)
 
