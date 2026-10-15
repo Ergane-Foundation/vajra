@@ -48,23 +48,8 @@ echo "║           VAJRA INSTALLATION                                          
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
-# Root Check
-if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}ERROR: Must run as root${NC}"
-    echo "Run: sudo ./scripts/install.sh"
-    exit 1
-fi
-
-# Platform Guard
-# This installer targets Linux package managers (apt/dnf/yum/pacman). On macOS
-# users should run scripts/start_macos.sh instead, otherwise the package
-# manager detection below falls through to a confusing "No supported package
-# manager found" error.
-# Refuse to run on macOS: this script installs Linux-only packages via
-# apt/dnf/yum/pacman. On macOS, start_macos.sh performs its own dependency
-# check (Suricata via `brew install suricata`, python3) directly and does
-# NOT call this script, so reaching this branch means the user invoked
-# install.sh manually. Point them at start_macos.sh instead. See issue #29.
+# Platform Guard: this installer is Linux-only (apt/dnf/yum/pacman). On
+# macOS use scripts/start_macos.sh instead (brew-based checks). See issue #29.
 if [ "$(uname -s)" = "Darwin" ]; then
     echo -e "${RED}ERROR: This Linux installer is not supported on macOS.${NC}"
     echo ""
@@ -81,6 +66,13 @@ if [ "$(uname -s)" = "Darwin" ]; then
     echo "Homebrew (e.g. \`brew install suricata\`) and re-run."
     echo ""
     echo "Aborting before any package is touched."
+    exit 1
+fi
+
+# Root Check
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}ERROR: Must run as root${NC}"
+    echo "Run: sudo ./scripts/install.sh"
     exit 1
 fi
 
