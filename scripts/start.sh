@@ -297,7 +297,7 @@ echo -e "${GREEN}  [OK] Cleanup complete${NC}"
 # Step 0.5: Suricata must not drop traffic that the SOAR engine never blocks
 echo ""
 echo -e "${YELLOW}[0.5/8] Generating pass rule for protected addresses...${NC}"
-PROTECTED=$("$PYTHON_CMD" -m vajra.common.network allowlist 2>/dev/null || true)
+PROTECTED=$("$PYTHON_CMD" -m vajra.common.network allowlist || true)
 if [ -z "$PROTECTED" ]; then
     echo -e "${RED}  [FAIL] Could not build the protected address list${NC}"
     exit 1

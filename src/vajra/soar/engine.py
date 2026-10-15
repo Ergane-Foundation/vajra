@@ -89,7 +89,7 @@ class FirewallManager:
     def __init__(self, dry_run: bool = False, allowlist: Optional[List[str]] = None):
         self.dry_run = dry_run
         self.backend = self._detect_backend()
-        self.allowlist = build_allowlist(allowlist)
+        self.allowlist = build_allowlist(allowlist, logger)
         self.blocked_ips_file = Path("logs/blocked_ips.txt")
         self.blocked_ips = self._load_blocked_ips()
         logger.info(f"Firewall backend: {self.backend}" + (" (dry run)" if dry_run else ""))
