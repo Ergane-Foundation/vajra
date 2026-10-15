@@ -192,6 +192,10 @@ docs/                Architecture and API reference
   removes the `inet vajra` table, and the SOAR engine re-applies the ones in
   `logs/blocked_ips.txt` when it starts again. With iptables, stopping the
   pipeline does not remove them. Remove one by hand with `iptables -D`.
+- Blocks only apply to traffic to and from the host itself. The nftables
+  chains hook input and output, and the iptables rules go in INPUT and
+  OUTPUT, so traffic forwarded through the host is not dropped when Vajra
+  runs inline.
 - With iptables, the SOAR engine appends its DROP rules after the NFQUEUE
   rules. Whether they take effect depends on how the chain is evaluated, and
   this has not been verified.
