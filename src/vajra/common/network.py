@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Optional, Tuple, Dict, List
 
 logger = logging.getLogger(__name__)
+RESOLV_CONF_FILES = ("/etc/resolv.conf",)
 
 def run_command(cmd: str) -> str:
     """Run a shell command and return output"""
@@ -205,29 +206,31 @@ def get_all_network_info() -> Dict[str, str]:
     }
 
 
-def build_allowlist(extra: Optional[List[str]] = None) -> list:
+def build_allowlist(extra: Optional[List[str]] = None, log: Optional[logging.Logger] = None) -> list:
     """Networks that must never be blocked: loopback, this host, its gateway and DNS resolvers"""
+    log = log or logger
     entries = ["127.0.0.0/8", "::1/128"] + list(extra or [])
     env = os.environ.get("VAJRA_ALLOWLIST", "")
     entries += [e.strip() for e in env.split(",") if e.strip()]
     try:
         entries += [get_local_ip(), get_gateway_ip()]
     except Exception as e:
-        logger.warning(f"Could not detect local addresses for the allowlist: {e}")
-    try:
-        for line in Path("/etc/resolv.conf").read_text().splitlines():
-            parts = line.split()
-            if len(parts) >= 2 and parts[0] == "nameserver":
-                entries.append(parts[1])
-    except OSError:
-        pass
+        log.warning(f"Could not detect local addresses for the allowlist: {e}")
+    for path in RESOLV_CONF_FILES:
+        try:
+            for line in Path(path).read_text().splitlines():
+                parts = line.split()
+                if len(parts) >= 2 and parts[0] == "nameserver":
+                    entries.append(parts[1])
+        except OSError:
+            pass
 
     networks = []
     for entry in entries:
         try:
             network = ipaddress.ip_network(entry, strict=False)
         except ValueError:
-            logger.warning(f"Ignoring invalid allowlist entry: {entry}")
+            log.warning(f"Ignoring invalid allowlist entry: {entry}")
             continue
         if network not in networks:
             networks.append(network)
