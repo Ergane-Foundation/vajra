@@ -55,7 +55,7 @@ when any of these holds:
 
 Before anything is applied, the source is checked against the allowlist.
 Loopback, every address on the host, its IPv4 and IPv6 default gateways, the
-nameservers in `/etc/resolv.conf`, every `--allow` network and every entry in
+nameservers in `/etc/resolv.conf` and, when it exists, `/run/systemd/resolve/resolv.conf`, every `--allow` network and every entry in
 `VAJRA_ALLOWLIST` are never blocked.
 
 A block is then applied with nftables if the `nft` binary exists, otherwise

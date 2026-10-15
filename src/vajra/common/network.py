@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Optional, Tuple, Dict, List
 
 logger = logging.getLogger(__name__)
-RESOLV_CONF_FILES = ("/etc/resolv.conf",)
+RESOLV_CONF_FILES = ("/etc/resolv.conf", "/run/systemd/resolve/resolv.conf")
 
 def run_command(cmd: str) -> str:
     """Run a shell command and return output"""
