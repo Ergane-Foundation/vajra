@@ -9,9 +9,9 @@ with iptables or nftables. Each decision is logged, every block gets a
 report, and all events are available as one live stream.
 
 The rule the whole thing is built around: **Vajra never cuts the host off from
-its own network.** Loopback, the host's own address, its gateway and its DNS
-resolvers are never blocked. [Safety](#safety) lists exactly how that is
-enforced.
+its own network.** Loopback, every address on the host, its IPv4 and IPv6
+default gateways and its DNS resolvers are never blocked. [Safety](#safety)
+lists exactly how that is enforced.
 
 [Discord](https://discord.gg/gZTJfUujX) ·
 [Contributing](CONTRIBUTING.md) ·
@@ -49,8 +49,9 @@ confidence. [docs/architecture.md](docs/architecture.md) has the details.
 
 | Situation | What Vajra does |
 | --- | --- |
-| Alert source is loopback, the host itself, its gateway or a DNS resolver | Never blocks it |
+| Alert source is loopback, any address on the host, its IPv4 or IPv6 default gateways or a DNS resolver | Never blocks it |
 | Alert source is in `--allow` or `VAJRA_ALLOWLIST` | Never blocks it |
+| Connection started by any of those addresses | Suricata passes it without inspection, so no rule drops it. If the gateway NATs inbound traffic, connections forwarded through it look like the gateway and are not inspected either |
 | Started with `--dry-run` | Logs each decision as `not_enforced` and leaves the firewall alone |
 | No firewall backend, for example on macOS | Logs the decision as `not_enforced` rather than reporting a block |
 | Event stream and inference API | Listen on `127.0.0.1` only, unless `VAJRA_API_HOST` says otherwise |
@@ -187,10 +188,14 @@ docs/                Architecture and API reference
 
 ## Limitations
 
-- Blocks are permanent. Nothing expires them, and stopping the pipeline does
-  not remove them. Remove a block by hand with `iptables -D` or `nft delete`.
-- The nftables backend adds to a set named `inet filter blocked_ips`, which
-  none of the scripts create yet. Without it, nftables blocks fail.
+- Blocks never expire. With nftables they last until `scripts/stop.sh`
+  removes the `inet vajra` table, and the SOAR engine re-applies the ones in
+  `logs/blocked_ips.txt` when it starts again. With iptables, stopping the
+  pipeline does not remove them. Remove one by hand with `iptables -D`.
+- Blocks only apply to traffic to and from the host itself. The nftables
+  chains hook input and output, and the iptables rules go in INPUT and
+  OUTPUT, so traffic forwarded through the host is not dropped when Vajra
+  runs inline.
 - With iptables, the SOAR engine appends its DROP rules after the NFQUEUE
   rules. Whether they take effect depends on how the chain is evaluated, and
   this has not been verified.
@@ -207,7 +212,7 @@ docs/                Architecture and API reference
 Planned or being considered, none of it built yet:
 
 - Expiring blocks and an `unblock` command
-- Correct nftables and iptables setup for blocks, created and removed by the scripts
+- Correct iptables setup for blocks, created and removed by the scripts
 - Thresholds, cooldowns and rate limits on blocking
 - An offline demo with Docker Compose and pcap replay that needs no root
 - Unit tests and CI
