@@ -276,7 +276,11 @@ echo ""
 echo -e "${YELLOW}[0/8] Cleaning up existing processes...${NC}"
 # Suricata renames itself Suricata-Main, so stop it by the PID file it wrote
 if [ -f "$LOGS_DIR/suricata.pid" ]; then
-    kill -9 "$(cat "$LOGS_DIR/suricata.pid")" 2>/dev/null || true
+    OLD_PID=$(cat "$LOGS_DIR/suricata.pid")
+    # The PID file can outlive a crash or reboot, so only kill the PID while it is still Suricata
+    if grep -qa suricata "/proc/$OLD_PID/cmdline" 2>/dev/null; then
+        kill -9 "$OLD_PID" 2>/dev/null || true
+    fi
     rm -f "$LOGS_DIR/suricata.pid"
 fi
 pkill -f "vajra.soar.engine" 2>/dev/null || true
