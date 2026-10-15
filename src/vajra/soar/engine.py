@@ -114,6 +114,7 @@ table inet vajra {
         self.allowlist = build_allowlist(allowlist, logger)
         self.blocked_ips_file = Path("logs/blocked_ips.txt")
         self.blocked_ips = self._load_blocked_ips()
+        self.unrestored_ips = set()
         if self.enforcing and self.backend == "nftables":
             self._setup_nftables()
         logger.info(f"Firewall backend: {self.backend}" + (" (dry run)" if dry_run else ""))
@@ -149,6 +150,10 @@ table inet vajra {
         self.blocked_ips = set()
         for ip in saved_ips:
             self.block_ip(ip, "Restored saved block")
+        # Keep blocks that could not be re-applied so the next start retries them
+        self.unrestored_ips = {ip for ip in saved_ips - self.blocked_ips if ip and not self.is_allowlisted(ip)}
+        if self.unrestored_ips:
+            logger.warning(f"Could not restore {len(self.unrestored_ips)} saved blocks, keeping them in {self.blocked_ips_file}")
         self._save_blocked_ips()
         logger.info(f"Restored {len(self.blocked_ips)} nftables blocks")
 
@@ -178,7 +183,7 @@ table inet vajra {
     def _save_blocked_ips(self):
         """Save blocked IPs to file"""
         self.blocked_ips_file.parent.mkdir(parents=True, exist_ok=True)
-        self.blocked_ips_file.write_text('\n'.join(self.blocked_ips))
+        self.blocked_ips_file.write_text('\n'.join(self.blocked_ips | self.unrestored_ips))
     
     def block_ip(self, ip: str, reason: str = "") -> bool:
         """Block an IP address"""
