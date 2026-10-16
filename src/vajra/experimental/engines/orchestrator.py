@@ -260,6 +260,9 @@ class AdvancedThreatOrchestrator:
                         threat_scores.append(severity_scores.get(exploit_result.severity, 6))
                 
                 # 6. ML Models (if available)
+                # NOTE: predict_all runs every enabled model, including ones (e.g. insider-threat)
+                # that expect non-packet features. Filtering by model type is a follow-up.
+
                 if self.config['ml_models'] and hasattr(self.engines.get('ml_models'), 'predict_all'):
                     # Extract features for ML
                     ml_features = self._extract_ml_features(packet_data)
