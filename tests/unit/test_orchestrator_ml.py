@@ -7,6 +7,8 @@ from types import SimpleNamespace
 
 from vajra.experimental.engines.orchestrator import AdvancedThreatOrchestrator
 
+from vajra.ml.manager import MLModelManager, ModelConfig
+
 PACKET = {
     "src_ip": "1.2.3.4", "dst_ip": "5.6.7.8", "src_port": 1234,
     "dst_port": 80, "protocol": "TCP", "packet_length": 200,
@@ -14,14 +16,34 @@ PACKET = {
 
 
 class ThreatManager:
-    def predict_all(self, data, data_type="network"):
+    def predict_all(self, data, data_type="network", exclude_types=None):
         return {"fake": SimpleNamespace(
             is_threat=True, threat_type="ml_detected_threat", confidence=0.9)}
 
 
 class FailingManager:
-    def predict_all(self, data, data_type="network"):
+    def predict_all(self, data, data_type="network", exclude_types=None):
         raise RuntimeError("boom")
+
+
+class FakeModel:
+    def predict(self, X):
+        return [1]
+
+    def predict_proba(self, X):
+        return [[0.1, 0.9]]
+
+
+def make_manager(tmp_dir, model_types):
+    manager = MLModelManager(
+        models_dir=str(Path(tmp_dir) / "models"),
+        log_file=str(Path(tmp_dir) / "ml.json"),
+    )
+    for name, model_type in model_types.items():
+        manager.models[name] = FakeModel()
+        manager.configs[name] = ModelConfig(name, "", model_type, [], 0.5, True, "")
+        manager.stats["by_model"][name] = {"predictions": 0, "threats": 0}
+    return manager
 
 
 class TestOrchestratorML(unittest.TestCase):
@@ -51,6 +73,22 @@ class TestOrchestratorML(unittest.TestCase):
             result = orchestrator.analyze_packet(PACKET)
         self.assertIsNone(result)
         self.assertTrue(any("ML prediction error" in line for line in cm.output))
+
+
+    def test_insider_threat_model_is_never_run_on_packets(self):
+        manager = make_manager(
+            self._tmp.name, {"insider": "insider_threat", "net": "anomaly"}
+        )
+        result = self._make(manager).analyze_packet(PACKET)
+        self.assertIsNotNone(result)
+        self.assertNotIn("ml_insider", result.detections)
+        self.assertEqual(manager.stats["by_model"]["insider"]["predictions"], 0)
+
+    def test_network_models_still_add_detections(self):
+        manager = make_manager(self._tmp.name, {"net": "anomaly", "dos": "ddos"})
+        result = self._make(manager).analyze_packet(PACKET)
+        self.assertIn("ml_net", result.detections)
+        self.assertIn("ml_dos", result.detections)
 
 
 if __name__ == "__main__":

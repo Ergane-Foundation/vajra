@@ -268,7 +268,7 @@ class AdvancedThreatOrchestrator:
                     ml_features = self._extract_ml_features(packet_data)
                     if ml_features:
                         try:
-                            ml_results = self.engines['ml_models'].predict_all(ml_features, data_type="network")
+                            ml_results = self.engines['ml_models'].predict_all(ml_features, data_type="network", exclude_types={"insider_threat"})
                             for name, ml_result in ml_results.items():
                                 if ml_result.is_threat:
                                     detections[f'ml_{name}'] = {
