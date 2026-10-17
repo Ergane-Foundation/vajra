@@ -260,21 +260,25 @@ class AdvancedThreatOrchestrator:
                         threat_scores.append(severity_scores.get(exploit_result.severity, 6))
                 
                 # 6. ML Models (if available)
-                if self.config['ml_models'] and hasattr(self.engines.get('ml_models'), 'predict'):
+                # NOTE: predict_all runs every enabled model, including ones (e.g. insider-threat)
+                # that expect non-packet features. Filtering by model type is a follow-up.
+
+                if self.config['ml_models'] and hasattr(self.engines.get('ml_models'), 'predict_all'):
                     # Extract features for ML
                     ml_features = self._extract_ml_features(packet_data)
                     if ml_features:
                         try:
-                            ml_result = self.engines['ml_models'].predict(ml_features)
-                            if ml_result and ml_result.is_threat:
-                                detections['ml_models'] = {
-                                    'threat_type': ml_result.threat_type,
-                                    'confidence': ml_result.confidence
-                                }
-                                threat_types.append(ml_result.threat_type)
-                                threat_scores.append(ml_result.confidence * 8)
+                            ml_results = self.engines['ml_models'].predict_all(ml_features, data_type="network")
+                            for name, ml_result in ml_results.items():
+                                if ml_result.is_threat:
+                                    detections[f'ml_{name}'] = {
+                                        'threat_type': ml_result.threat_type,
+                                        'confidence': ml_result.confidence
+                                    }
+                                    threat_types.append(ml_result.threat_type)
+                                    threat_scores.append(ml_result.confidence * 8)
                         except Exception as e:
-                            logger.debug(f"ML prediction error: {e}")
+                            logger.warning(f"ML prediction error: {e}")
                 
                 # Combine results
                 if detections:
@@ -310,7 +314,8 @@ class AdvancedThreatOrchestrator:
                 'protocol': packet_data.get('protocol', 'TCP'),
                 'dst_port': packet_data.get('dst_port', 0),
                 'src_port': packet_data.get('src_port', 0),
-                'timestamp': packet_data.get('timestamp', time.time())
+                'timestamp': packet_data.get('timestamp', time.time()),
+                'size': packet_data.get('packet_length', 0),
             }
         except Exception:
             return None
