@@ -344,7 +344,7 @@ echo -e "${GREEN}  [OK] NFQUEUE rules configured${NC}"
 echo ""
 echo -e "${YELLOW}[1.5/8] Generating suricata.yaml with detected interface...${NC}"
 
-HOST_V6=$(ip -6 -o addr show scope global 2>/dev/null | awk '{split($4,a,"/"); print a[1]"/128"}' | paste -sd, -)
+HOST_V6=$(ip -6 -o addr show scope global 2>/dev/null | awk '{print $4}' | paste -sd, -)
 
 cat > "$ROOT_DIR/config/suricata/suricata.runtime.yaml" << EOF
 %YAML 1.1
