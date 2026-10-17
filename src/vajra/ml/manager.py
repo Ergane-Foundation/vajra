@@ -558,17 +558,22 @@ class MLModelManager:
             return None
     
     def predict_all(
-        self, 
+        self,
         data: Dict[str, Any],
-        data_type: str = "network"
+        data_type: str = "network",
+        exclude_types: Optional[set] = None
     ) -> Dict[str, MLPrediction]:
-        """Run prediction on all enabled models"""
+        """Run prediction on all enabled models, optionally skipping model types"""
         results = {}
-        for name, config in self.configs.items():
-            if config.enabled:
-                result = self.predict(name, data, data_type)
-                if result:
-                    results[name] = result
+        with self._lock:
+            names = [
+                name for name, config in self.configs.items()
+                if config.enabled and config.model_type not in (exclude_types or set())
+            ]
+        for name in names:
+            result = self.predict(name, data, data_type)
+            if result:
+                results[name] = result
         return results
     
     def _classify_threat(
