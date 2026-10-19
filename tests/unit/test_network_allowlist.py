@@ -1,6 +1,7 @@
 """Tests for build_allowlist, the addresses Vajra must never block (issue #46)."""
 
 import ipaddress
+import json
 import logging
 
 import pytest
@@ -13,6 +14,8 @@ def host(monkeypatch):
     """Fixed host addresses and no resolver files, so results do not depend on this machine."""
     monkeypatch.setattr(network, "get_local_ip", lambda: "192.0.2.10")
     monkeypatch.setattr(network, "get_gateway_ip", lambda: "192.0.2.1")
+    monkeypatch.setattr(network, "get_local_addresses", list)
+    monkeypatch.setattr(network, "get_default_gateways", list)
     monkeypatch.setattr(network, "RESOLV_CONF_FILES", ())
     monkeypatch.delenv("VAJRA_ALLOWLIST", raising=False)
 
@@ -63,3 +66,44 @@ def test_reads_nameservers_and_skips_missing_files(host, monkeypatch, tmp_path):
     allowlist = network.build_allowlist()
     assert net("10.0.2.3/32") in allowlist
     assert net("fec0::3/128") in allowlist
+
+
+ADDR = "ip -j addr show 2>/dev/null"
+ROUTE4 = "ip -j -4 route show default 2>/dev/null"
+ROUTE6 = "ip -j -6 route show default 2>/dev/null"
+
+
+def fake_ip(monkeypatch, outputs):
+    """Make run_command return canned ip -j output per command, and nothing for others"""
+    monkeypatch.setattr(network, "run_command", lambda cmd: outputs.get(cmd, ""))
+
+
+def test_local_addresses_come_from_every_interface(monkeypatch):
+    fake_ip(monkeypatch, {ADDR: json.dumps([
+        {"ifname": "lo", "addr_info": [{"family": "inet", "local": "127.0.0.1"}, {"family": "inet6", "local": "::1"}]},
+        {"ifname": "eth0", "addr_info": [{"family": "inet", "local": "192.0.2.10"}, {"family": "inet6", "local": "fe80::5054:ff:fe12:3456"}]},
+        {"ifname": "eth1", "addr_info": []},
+        {"ifname": "eth2"},
+    ])})
+    assert network.get_local_addresses() == ["127.0.0.1", "::1", "192.0.2.10", "fe80::5054:ff:fe12:3456"]
+
+
+def test_default_gateways_include_multipath_nexthops(monkeypatch):
+    fake_ip(monkeypatch, {
+        ROUTE4: json.dumps([
+            {"dst": "default", "gateway": "192.0.2.1", "dev": "eth0", "flags": []},
+            {"dst": "default", "dev": "wg0", "scope": "link", "flags": []},
+        ]),
+        ROUTE6: json.dumps([{"dst": "default", "flags": [], "nexthops": [
+            {"gateway": "fe80::1", "dev": "eth0", "weight": 1, "flags": []},
+            {"gateway": "fe80::2", "dev": "eth1", "weight": 1, "flags": []},
+        ]}]),
+    })
+    assert network.get_default_gateways() == ["192.0.2.1", "fe80::1", "fe80::2"]
+
+
+@pytest.mark.parametrize("output", ["", "[]"], ids=["command-failed", "no-routes"])
+def test_no_addresses_when_ip_output_is_empty(monkeypatch, output):
+    fake_ip(monkeypatch, {ADDR: output, ROUTE4: output, ROUTE6: output})
+    assert network.get_local_addresses() == []
+    assert network.get_default_gateways() == []

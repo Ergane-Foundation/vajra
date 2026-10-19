@@ -54,13 +54,15 @@ when any of these holds:
 - user behaviour analytics raises a high or critical alert for the user
 
 Before anything is applied, the source is checked against the allowlist.
-Loopback, the host's own address, its default gateway, the nameservers in
-`/etc/resolv.conf`, every `--allow` network and every entry in
+Loopback, every address on the host, its IPv4 and IPv6 default gateways, the
+nameservers in `/etc/resolv.conf` and, when it exists, `/run/systemd/resolve/resolv.conf`, every `--allow` network and every entry in
 `VAJRA_ALLOWLIST` are never blocked.
 
 A block is then applied with nftables if the `nft` binary exists, otherwise
 with iptables. In `--dry-run` mode, or when no firewall backend exists, the
 decision is logged as `not_enforced` and nothing changes on the host.
+The SOAR engine creates the nftables table `inet vajra` with IPv4 and IPv6
+block sets on start, restores saved blocks, and `scripts/stop.sh` removes it.
 
 Every decision is appended to `logs/soar_actions.log`, and each applied block
 produces a JSON report in `logs/reports/`.

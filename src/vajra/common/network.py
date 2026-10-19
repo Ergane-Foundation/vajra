@@ -22,11 +22,12 @@ import socket
 import re
 import os
 import sys
+import json
 from pathlib import Path
 from typing import Optional, Tuple, Dict, List
 
 logger = logging.getLogger(__name__)
-RESOLV_CONF_FILES = ("/etc/resolv.conf",)
+RESOLV_CONF_FILES = ("/etc/resolv.conf", "/run/systemd/resolve/resolv.conf")
 
 def run_command(cmd: str) -> str:
     """Run a shell command and return output"""
@@ -162,6 +163,37 @@ def get_gateway_ip(interface: str = None) -> str:
     return '192.168.1.1'
 
 
+def get_local_addresses() -> List[str]:
+    """Get every IPv4 and IPv6 address on the host"""
+    try:
+        interfaces = json.loads(run_command("ip -j addr show 2>/dev/null"))
+        return [
+            address["local"]
+            for interface in interfaces
+            for address in interface.get("addr_info", [])
+            if address.get("local")
+        ]
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        return []
+
+
+def get_default_gateways() -> List[str]:
+    """Get every IPv4 and IPv6 default gateway, including multipath routes"""
+    gateways = []
+    for family in ("-4", "-6"):
+        try:
+            routes = json.loads(run_command(f"ip -j {family} route show default 2>/dev/null"))
+            gateways += [
+                nexthop["gateway"]
+                for route in routes
+                for nexthop in [route] + route.get("nexthops", [])
+                if nexthop.get("gateway")
+            ]
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            continue
+    return gateways
+
+
 def get_network_cidr(interface: str = None) -> str:
     """
     Get the network CIDR.
@@ -207,13 +239,13 @@ def get_all_network_info() -> Dict[str, str]:
 
 
 def build_allowlist(extra: Optional[List[str]] = None, log: Optional[logging.Logger] = None) -> list:
-    """Networks that must never be blocked: loopback, this host, its gateway and DNS resolvers"""
+    """Networks that must never be blocked: loopback, this host, its gateways and DNS resolvers"""
     log = log or logger
     entries = ["127.0.0.0/8", "::1/128"] + list(extra or [])
     env = os.environ.get("VAJRA_ALLOWLIST", "")
     entries += [e.strip() for e in env.split(",") if e.strip()]
     try:
-        entries += [get_local_ip(), get_gateway_ip()]
+        entries += [get_local_ip(), get_gateway_ip()] + get_local_addresses() + get_default_gateways()
     except Exception as e:
         log.warning(f"Could not detect local addresses for the allowlist: {e}")
     for path in RESOLV_CONF_FILES:

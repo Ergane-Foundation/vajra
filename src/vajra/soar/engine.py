@@ -85,6 +85,28 @@ class ActionRecord:
 
 class FirewallManager:
     """Manages iptables/nftables for blocking IPs"""
+
+    NFT_RULESET = """table inet vajra
+delete table inet vajra
+table inet vajra {
+    set blocked_ips {
+        type ipv4_addr
+    }
+    set blocked_ips6 {
+        type ipv6_addr
+    }
+    chain input {
+        type filter hook input priority filter - 1; policy accept;
+        ip saddr @blocked_ips drop
+        ip6 saddr @blocked_ips6 drop
+    }
+    chain output {
+        type filter hook output priority filter - 1; policy accept;
+        ip daddr @blocked_ips drop
+        ip6 daddr @blocked_ips6 drop
+    }
+}
+"""
     
     def __init__(self, dry_run: bool = False, allowlist: Optional[List[str]] = None):
         self.dry_run = dry_run
@@ -92,6 +114,9 @@ class FirewallManager:
         self.allowlist = build_allowlist(allowlist, logger)
         self.blocked_ips_file = Path("logs/blocked_ips.txt")
         self.blocked_ips = self._load_blocked_ips()
+        self.unrestored_ips = set()
+        if self.enforcing and self.backend == "nftables":
+            self._setup_nftables()
         logger.info(f"Firewall backend: {self.backend}" + (" (dry run)" if dry_run else ""))
         logger.info(f"Allowlist: {', '.join(str(n) for n in self.allowlist)}")
 
@@ -99,6 +124,38 @@ class FirewallManager:
     def enforcing(self) -> bool:
         """True when blocks are actually applied to the host firewall"""
         return not self.dry_run and self.backend != "none"
+
+    def _nft_set(self, ip: str) -> str:
+        """Choose the nftables set for an IP address"""
+        return "blocked_ips6" if ipaddress.ip_address(ip).version == 6 else "blocked_ips"
+
+    def _setup_nftables(self):
+        """Create the nftables rules and restore saved blocks"""
+        error = None
+        try:
+            result = subprocess.run(["nft", "-f", "-"], input=self.NFT_RULESET, capture_output=True, text=True, timeout=5)
+            if result.returncode != 0:
+                error = result.stderr.strip()
+        except (OSError, subprocess.SubprocessError) as e:
+            error = str(e)
+        if error is not None:
+            # Without the table no block can be applied, so saved blocks must not count as active
+            logger.error(f"Could not set up nftables, blocks will not be enforced: {error}")
+            self.backend = "none"
+            self.blocked_ips = set()
+            return
+
+        # Recreating the table empties the sets, so re-apply saved blocks
+        saved_ips = self.blocked_ips
+        self.blocked_ips = set()
+        for ip in saved_ips:
+            self.block_ip(ip, "Restored saved block")
+        # Keep blocks that could not be re-applied so the next start retries them
+        self.unrestored_ips = {ip for ip in saved_ips - self.blocked_ips if ip and not self.is_allowlisted(ip)}
+        if self.unrestored_ips:
+            logger.warning(f"Could not restore {len(self.unrestored_ips)} saved blocks, keeping them in {self.blocked_ips_file}")
+        self._save_blocked_ips()
+        logger.info(f"Restored {len(self.blocked_ips)} nftables blocks")
 
     def is_allowlisted(self, ip: str) -> bool:
         """Check whether an IP falls inside the allowlist"""
@@ -126,7 +183,7 @@ class FirewallManager:
     def _save_blocked_ips(self):
         """Save blocked IPs to file"""
         self.blocked_ips_file.parent.mkdir(parents=True, exist_ok=True)
-        self.blocked_ips_file.write_text('\n'.join(self.blocked_ips))
+        self.blocked_ips_file.write_text('\n'.join(self.blocked_ips | self.unrestored_ips))
     
     def block_ip(self, ip: str, reason: str = "") -> bool:
         """Block an IP address"""
@@ -150,7 +207,7 @@ class FirewallManager:
         try:
             if self.backend == "nftables":
                 # nftables
-                cmd = ["nft", "add", "element", "inet", "filter", "blocked_ips", f"{{ {ip} }}"]
+                cmd = ["nft", "add", "element", "inet", "vajra", self._nft_set(ip), f"{{ {ip} }}"]
                 result = subprocess.run(cmd, capture_output=True, timeout=5)
                 success = result.returncode == 0
                 
@@ -183,7 +240,7 @@ class FirewallManager:
         
         try:
             if self.backend == "nftables":
-                cmd = ["nft", "delete", "element", "inet", "filter", "blocked_ips", f"{{ {ip} }}"]
+                cmd = ["nft", "delete", "element", "inet", "vajra", self._nft_set(ip), f"{{ {ip} }}"]
                 subprocess.run(cmd, capture_output=True, timeout=5)
             elif self.backend == "iptables":
                 subprocess.run(["iptables", "-D", "INPUT", "-s", ip, "-j", "DROP"], capture_output=True, timeout=5)
