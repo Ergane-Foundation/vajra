@@ -215,7 +215,6 @@ Planned or being considered, none of it built yet:
 - Correct iptables setup for blocks, created and removed by the scripts
 - Thresholds, cooldowns and rate limits on blocking
 - An offline demo with Docker Compose and pcap replay that needs no root
-- Unit tests and CI
 - Validated models with documented training data
 - A dashboard
 - The DPDK capture path

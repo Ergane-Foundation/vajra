@@ -49,7 +49,11 @@ or a live network:
 make setup                  # virtualenv + editable install with dev tools
 source venv/bin/activate
 make lint
+make test
 ```
+
+CI runs the same lint and tests on every pull request, on Python 3.10 and 3.12.
+Lint only checks for syntax errors and undefined names for now.
 
 The SOAR engine can replay a Suricata `eve.json` file in dry-run mode, which
 logs every decision without touching the firewall:
