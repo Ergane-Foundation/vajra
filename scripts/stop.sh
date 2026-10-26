@@ -87,6 +87,28 @@ for tool in iptables ip6tables; do
     $tool -F VAJRA-BLOCK 2>/dev/null && $tool -X VAJRA-BLOCK 2>/dev/null && echo -e "${GREEN}  [OK] $tool chain VAJRA-BLOCK removed${NC}" || true
 done
 
+# Remove DROP rules left by older versions
+if command -v iptables &> /dev/null && command -v iptables-restore &> /dev/null; then
+    rules=$(iptables -S INPUT 2>/dev/null | grep -E '^-A INPUT -s [0-9.]+/32 -m comment --comment "(Vajra|NGFW): .*" -j DROP$' | sed 's/^-A /-D /')
+    if [ -n "$rules" ]; then
+        count=$(echo "$rules" | wc -l)
+        if printf '*filter\n%s\nCOMMIT\n' "$rules" | iptables-restore --noflush 2>/dev/null; then
+            echo -e "${GREEN}  [OK] Removed $count old Vajra DROP rules from INPUT${NC}"
+        else
+            echo -e "${YELLOW}  [WARN] Could not remove old Vajra DROP rules from INPUT${NC}"
+        fi
+    fi
+
+    if [ -f logs/blocked_ips.txt ]; then
+        for ip in $(grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$' logs/blocked_ips.txt | grep -vE '(^|\.)0[0-9]'); do
+            # These rules carry no tag, so an identical admin rule would look the same; print instead of deleting
+            if iptables -C OUTPUT -d "$ip" -j DROP 2>/dev/null; then
+                echo -e "${YELLOW}  [WARN] Old OUTPUT DROP rule for $ip may remain; if it is not yours, run: sudo iptables -D OUTPUT -d $ip -j DROP${NC}"
+            fi
+        done
+    fi
+fi
+
 # Remove SOAR nftables blocks
 if command -v nft &> /dev/null; then
     nft delete table inet vajra 2>/dev/null && echo -e "${GREEN}  [OK] nftables table inet vajra removed${NC}" || true
