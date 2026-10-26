@@ -578,7 +578,12 @@ if [ "$ENABLE_HTTP_SERVER" = "true" ]; then
     # Serve a dedicated demo directory, never the repository itself
     mkdir -p "$LOGS_DIR/www"
     echo "Vajra demo target" > "$LOGS_DIR/www/index.html"
-    nohup $PYTHON_CMD -m http.server $HTTP_PORT --bind :: --directory "$LOGS_DIR/www" > logs/http_server.out 2>&1 &
+    # http.server cannot bind to :: when the kernel has IPv6 disabled
+    HTTP_BIND="0.0.0.0"
+    if [ -e /proc/net/if_inet6 ]; then
+        HTTP_BIND="::"
+    fi
+    nohup $PYTHON_CMD -m http.server $HTTP_PORT --bind "$HTTP_BIND" --directory "$LOGS_DIR/www" > logs/http_server.out 2>&1 &
     HTTP_PID=$!
     echo $HTTP_PID > logs/http_server.pid
     sleep 1
