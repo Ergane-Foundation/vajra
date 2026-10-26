@@ -195,8 +195,8 @@ docs/                Architecture and API reference
   again.
 - Blocks only apply to traffic to and from the host itself. The nftables
   chains hook input and output, and the iptables `VAJRA-BLOCK` chain is only
-  jumped to from INPUT and OUTPUT, so traffic forwarded through the host is not dropped when Vajra
-  runs inline.
+  jumped to from INPUT and OUTPUT, so traffic forwarded through the host is
+  not dropped when Vajra runs inline.
 - One matching alert is enough to block a source. There is no threshold,
   cooldown or rate limit yet.
 - The bundled models have no documented training data or evaluation, and some
