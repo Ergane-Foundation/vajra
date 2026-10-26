@@ -93,3 +93,12 @@ def test_block_and_unblock_use_the_chain(engine_module, monkeypatch):
     assert run.calls[-2:] == drops("iptables", "-A", "198.51.100.9")
     assert fw.unblock_ip("198.51.100.9") is True
     assert run.calls[-2:] == drops("iptables", "-D", "198.51.100.9")
+
+
+def test_dry_run_never_runs_iptables(engine_module, tmp_path, monkeypatch):
+    (tmp_path / "logs" / "blocked_ips.txt").write_text("203.0.113.7")
+    run = FakeIptables()
+    monkeypatch.setattr(engine_module.subprocess, "run", run)
+    fw = engine_module.FirewallManager(dry_run=True)
+    assert fw.block_ip("198.51.100.9", "test") is False
+    assert run.calls == []
