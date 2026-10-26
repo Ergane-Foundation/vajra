@@ -40,6 +40,10 @@ traffic ─► iptables NFQUEUE ─► Suricata ─► logs/eve.json
 Every consumer tails `eve.json` independently. There is no broker between
 them in the default setup.
 
+`scripts/start.sh` queues IPv6 as well as IPv4, using ip6tables when it is
+available. IPv6 forwarding stays off, because enabling it can drop the
+host's IPv6 default route.
+
 ## How the SOAR engine decides
 
 For each Suricata alert the engine maps Suricata's numeric severity to a

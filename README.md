@@ -57,8 +57,9 @@ confidence. [docs/architecture.md](docs/architecture.md) has the details.
 | Event stream and inference API | Listen on `127.0.0.1` only, unless `VAJRA_API_HOST` says otherwise |
 | Demo HTTP target | Serves only `logs/www`, never the repository |
 
-Live mode still runs as root, inserts NFQUEUE rules and enables IP
-forwarding. Use a disposable Linux VM.
+Live mode still runs as root, inserts NFQUEUE rules for IPv4 and IPv6 and
+enables IPv4 forwarding. IPv6 forwarding stays off, because enabling it can
+drop the host's IPv6 default route. Use a disposable Linux VM.
 
 ## Capabilities
 
