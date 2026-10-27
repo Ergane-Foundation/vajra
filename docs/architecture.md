@@ -69,7 +69,9 @@ The SOAR engine creates the nftables table `inet vajra` with IPv4 and IPv6
 block sets on start, restores saved blocks, and `scripts/stop.sh` removes it.
 With iptables it creates a `VAJRA-BLOCK` chain in iptables and ip6tables
 instead, jumped to from the top of INPUT and OUTPUT so blocks apply before
-the NFQUEUE rules. `scripts/stop.sh` removes it as well.
+the NFQUEUE rules. `scripts/stop.sh` removes it as well. It also deletes the
+`Vajra:` and `NGFW:` INPUT DROP rules that older versions added, and their
+untagged OUTPUT DROP rules only with `--remove-old-output-drops`.
 
 Every decision is appended to `logs/soar_actions.log`, and each applied block
 produces a JSON report in `logs/reports/`.
