@@ -13,6 +13,7 @@ Enhanced with ML model integration:
 
 import ipaddress
 import json
+import math
 import time
 import logging
 import os
@@ -81,6 +82,7 @@ class ActionRecord:
     severity: str
     result: str
     blocked: bool
+    expires_at: Optional[str] = None
 
 
 class FirewallManager:
@@ -91,9 +93,11 @@ delete table inet vajra
 table inet vajra {
     set blocked_ips {
         type ipv4_addr
+        flags timeout
     }
     set blocked_ips6 {
         type ipv6_addr
+        flags timeout
     }
     chain input {
         type filter hook input priority filter - 1; policy accept;
@@ -108,19 +112,25 @@ table inet vajra {
 }
 """
     IPTABLES_CHAIN = "VAJRA-BLOCK"
+    EXPIRY_INTERVAL = 5
     
-    def __init__(self, dry_run: bool = False, allowlist: Optional[List[str]] = None):
+    def __init__(self, dry_run: bool = False, allowlist: Optional[List[str]] = None, block_ttl: int = 0):
         self.dry_run = dry_run
         self.backend = self._detect_backend()
         self.allowlist = build_allowlist(allowlist, logger)
         self.blocked_ips_file = Path("logs/blocked_ips.txt")
         self.blocked_ips = self._load_blocked_ips()
         self.unrestored_ips = set()
+        self.block_ttl = block_ttl
+        self.block_expiry_file = Path("logs/block_expiry.json")
+        self.block_expiry = self._load_block_expiry()
+        self._lock = threading.RLock()
         if self.enforcing and self.backend == "nftables":
             self._setup_nftables()
         elif self.enforcing and self.backend == "iptables":
             self._setup_iptables()
         logger.info(f"Firewall backend: {self.backend}" + (" (dry run)" if dry_run else ""))
+        logger.info(f"Block TTL: {block_ttl}s" if block_ttl else "Block TTL: permanent")
         logger.info(f"Allowlist: {', '.join(str(n) for n in self.allowlist)}")
 
     @property
@@ -187,11 +197,20 @@ table inet vajra {
     def _restore_saved_blocks(self):
         """Re-apply saved blocks after the firewall rules were recreated"""
         saved_ips = self.blocked_ips
+        saved_expiry = self.block_expiry
         self.blocked_ips = set()
+        self.block_expiry = {}
         for ip in saved_ips:
-            self.block_ip(ip, "Restored saved block")
+            exp = saved_expiry.get(ip)
+            if exp is not None and exp <= time.time():
+                # Already expired while stopped; the first sweep unblocks and records it
+                self.blocked_ips.add(ip)
+                self.block_expiry[ip] = exp
+                continue
+            self.block_ip(ip, "Restored saved block", expires_at=exp)
         # Keep blocks that could not be re-applied so the next start retries them
         self.unrestored_ips = {ip for ip in saved_ips - self.blocked_ips if ip and not self.is_allowlisted(ip)}
+        self.block_expiry.update({ip: saved_expiry[ip] for ip in self.unrestored_ips if ip in saved_expiry})
         if self.unrestored_ips:
             logger.warning(f"Could not restore {len(self.unrestored_ips)} saved blocks, keeping them in {self.blocked_ips_file}")
         self._save_blocked_ips()
@@ -219,13 +238,26 @@ table inet vajra {
         if self.blocked_ips_file.exists():
             return set(self.blocked_ips_file.read_text().strip().split('\n'))
         return set()
+
+    def _load_block_expiry(self) -> Dict[str, float]:
+        """Load the expiry time of each timed block"""
+        if not self.block_expiry_file.exists():
+            return {}
+        try:
+            return {ip: float(t) for ip, t in json.loads(self.block_expiry_file.read_text()).items()}
+        except (ValueError, TypeError, AttributeError, OSError) as e:
+            logger.warning(f"Could not read {self.block_expiry_file}, saved blocks get a new expiry: {e}")
+            return {}
     
     def _save_blocked_ips(self):
         """Save blocked IPs to file"""
-        self.blocked_ips_file.parent.mkdir(parents=True, exist_ok=True)
-        self.blocked_ips_file.write_text('\n'.join(self.blocked_ips | self.unrestored_ips))
+        # Serialize firewall changes, expiry state and persistence across alert and sweep threads
+        with self._lock:
+            self.blocked_ips_file.parent.mkdir(parents=True, exist_ok=True)
+            self.blocked_ips_file.write_text('\n'.join(self.blocked_ips | self.unrestored_ips))
+            self.block_expiry_file.write_text(json.dumps(dict(self.block_expiry)))
     
-    def block_ip(self, ip: str, reason: str = "") -> bool:
+    def block_ip(self, ip: str, reason: str = "", expires_at: Optional[float] = None) -> bool:
         """Block an IP address"""
         if not ip:
             return False
@@ -234,68 +266,108 @@ table inet vajra {
             logger.warning(f"Not blocking allowlisted IP {ip} | Reason: {reason}")
             return False
         
-        if ip in self.blocked_ips:
-            logger.debug(f"IP {ip} already blocked")
-            return True
+        with self._lock:
+            if ip in self.blocked_ips:
+                logger.debug(f"IP {ip} already blocked")
+                return True
 
-        if not self.enforcing:
-            logger.warning(f"Would block {ip} (not enforced: {'dry run' if self.dry_run else 'no firewall backend'}) | Reason: {reason}")
-            return False
-        
-        success = False
-        
-        try:
-            if self.backend == "nftables":
-                # nftables
-                cmd = ["nft", "add", "element", "inet", "vajra", self._nft_set(ip), f"{{ {ip} }}"]
-                result = subprocess.run(cmd, capture_output=True, timeout=5)
-                success = result.returncode == 0
-                
-            elif self.backend == "iptables":
-                # VAJRA-BLOCK is jumped to from INPUT and OUTPUT ahead of the NFQUEUE rules
-                tool = self._iptables(ip)
-                cmd1 = [tool, "-A", self.IPTABLES_CHAIN, "-s", ip, "-j", "DROP"]
-                cmd2 = [tool, "-A", self.IPTABLES_CHAIN, "-d", ip, "-j", "DROP"]
-                
-                r1 = subprocess.run(cmd1, capture_output=True, timeout=5)
-                r2 = subprocess.run(cmd2, capture_output=True, timeout=5)
-                success = r1.returncode == 0 or r2.returncode == 0
+            if not self.enforcing:
+                logger.warning(f"Would block {ip} (not enforced: {'dry run' if self.dry_run else 'no firewall backend'}) | Reason: {reason}")
+                return False
 
-            if success:
-                self.blocked_ips.add(ip)
-                self._save_blocked_ips()
-                logger.info(f"BLOCKED IP: {ip} | Reason: {reason}")
-            else:
-                logger.error(f"Failed to block IP: {ip}")
-                
-        except Exception as e:
-            logger.error(f"Error blocking IP {ip}: {e}")
+            if expires_at is None and self.block_ttl > 0:
+                expires_at = time.time() + self.block_ttl
+            
             success = False
-        
-        return success
+            
+            try:
+                if self.backend == "nftables":
+                    # nftables
+                    element = ip
+                    if expires_at is not None:
+                        # The sweep removes it on time; the kernel timeout is a backstop while the engine is stopped
+                        element += f" timeout {max(1, math.ceil(expires_at - time.time())) + self.EXPIRY_INTERVAL + 1}s"
+                    cmd = ["nft", "add", "element", "inet", "vajra", self._nft_set(ip), f"{{ {element} }}"]
+                    result = subprocess.run(cmd, capture_output=True, timeout=5)
+                    success = result.returncode == 0
+                    
+                elif self.backend == "iptables":
+                    # VAJRA-BLOCK is jumped to from INPUT and OUTPUT ahead of the NFQUEUE rules
+                    tool = self._iptables(ip)
+                    cmd1 = [tool, "-A", self.IPTABLES_CHAIN, "-s", ip, "-j", "DROP"]
+                    cmd2 = [tool, "-A", self.IPTABLES_CHAIN, "-d", ip, "-j", "DROP"]
+                    
+                    r1 = subprocess.run(cmd1, capture_output=True, timeout=5)
+                    r2 = subprocess.run(cmd2, capture_output=True, timeout=5)
+                    success = r1.returncode == 0 or r2.returncode == 0
+
+                if success:
+                    self.blocked_ips.add(ip)
+                    if expires_at is not None:
+                        self.block_expiry[ip] = expires_at
+                    else:
+                        self.block_expiry.pop(ip, None)
+                    self.unrestored_ips.discard(ip)
+                    self._save_blocked_ips()
+                    logger.info(f"BLOCKED IP: {ip} | Reason: {reason}")
+                else:
+                    logger.error(f"Failed to block IP: {ip}")
+                    
+            except Exception as e:
+                logger.error(f"Error blocking IP {ip}: {e}")
+                success = False
+            
+            return success
     
     def unblock_ip(self, ip: str) -> bool:
         """Unblock an IP address"""
-        if ip not in self.blocked_ips:
-            return True
-        
-        try:
-            if self.backend == "nftables":
-                cmd = ["nft", "delete", "element", "inet", "vajra", self._nft_set(ip), f"{{ {ip} }}"]
-                subprocess.run(cmd, capture_output=True, timeout=5)
-            elif self.backend == "iptables":
-                tool = self._iptables(ip)
-                subprocess.run([tool, "-D", self.IPTABLES_CHAIN, "-s", ip, "-j", "DROP"], capture_output=True, timeout=5)
-                subprocess.run([tool, "-D", self.IPTABLES_CHAIN, "-d", ip, "-j", "DROP"], capture_output=True, timeout=5)
+        with self._lock:
+            if ip not in self.blocked_ips:
+                return True
             
-            self.blocked_ips.discard(ip)
-            self._save_blocked_ips()
-            logger.info(f"Unblocked IP: {ip}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error unblocking IP {ip}: {e}")
-            return False
+            try:
+                codes = []
+                if self.backend == "nftables":
+                    cmd = ["nft", "delete", "element", "inet", "vajra", self._nft_set(ip), f"{{ {ip} }}"]
+                    codes.append(subprocess.run(cmd, capture_output=True, timeout=5).returncode)
+                elif self.backend == "iptables":
+                    tool = self._iptables(ip)
+                    codes.append(subprocess.run([tool, "-D", self.IPTABLES_CHAIN, "-s", ip, "-j", "DROP"], capture_output=True, timeout=5).returncode)
+                    codes.append(subprocess.run([tool, "-D", self.IPTABLES_CHAIN, "-d", ip, "-j", "DROP"], capture_output=True, timeout=5).returncode)
+                # rc 1 means the rule or element is already gone, e.g. a block that expired while the engine was stopped
+                if any(rc not in (0, 1) for rc in codes):
+                    logger.error(f"Failed to unblock IP: {ip}")
+                    return False
+                
+                self.blocked_ips.discard(ip)
+                self.block_expiry.pop(ip, None)
+                self._save_blocked_ips()
+                logger.info(f"Unblocked IP: {ip}")
+                return True
+                
+            except Exception as e:
+                logger.error(f"Error unblocking IP {ip}: {e}")
+                return False
+
+    def expire_blocks(self, now: Optional[float] = None) -> List[str]:
+        """Remove blocks whose expiry has passed and return their IPs"""
+        with self._lock:
+            now = time.time() if now is None else now
+            expired = []
+            for ip, exp in list(self.block_expiry.items()):
+                if exp > now:
+                    continue
+                if ip in self.unrestored_ips:
+                    self.unrestored_ips.discard(ip)
+                    self.block_expiry.pop(ip, None)
+                    expired.append(ip)
+                elif self.unblock_ip(ip):
+                    expired.append(ip)
+            if expired:
+                self._save_blocked_ips()
+                for ip in expired:
+                    logger.info(f"Block expired for {ip}")
+            return expired
 
 
 class ReportGenerator:
@@ -426,10 +498,11 @@ class SOAREngine:
         enable_packet_inspection: bool = False,
         network_interface: str = None,
         dry_run: bool = False,
-        allowlist: Optional[List[str]] = None
+        allowlist: Optional[List[str]] = None,
+        block_ttl: int = 0
     ):
         self.topic = topic
-        self.firewall = FirewallManager(dry_run=dry_run, allowlist=allowlist)
+        self.firewall = FirewallManager(dry_run=dry_run, allowlist=allowlist, block_ttl=block_ttl)
         self.reporter = ReportGenerator()
         self.processed_alerts = 0
         self.blocked_count = 0
@@ -491,6 +564,12 @@ class SOAREngine:
         else:
             self.consumer = None
             logger.warning("Kafka not available - using file-based fallback")
+
+        # Block expiry
+        self.expiry_thread: Optional[threading.Thread] = None
+        if self.firewall.enforcing:
+            self.expiry_thread = threading.Thread(target=self._expire_blocks_loop, daemon=True, name="BlockExpiry")
+            self.expiry_thread.start()
     
     def _load_ml_models(self, models_dir: str):
         """Load ML models from directory"""
@@ -632,6 +711,32 @@ class SOAREngine:
             return "not_enforced"
         return "failed"
 
+    def expire_blocks(self):
+        """Remove expired blocks and record each one"""
+        for ip in self.firewall.expire_blocks():
+            action = ActionRecord(
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                alert_id=f"expiry-{ip}",
+                action="UNBLOCK_IP",
+                target_ip=ip,
+                signature="Block expired",
+                severity="INFO",
+                result="success",
+                blocked=False
+            )
+            self.reporter.add_action(action)
+            if self.unified_logger:
+                self.unified_logger.log_soar_action(asdict(action))
+
+    def _expire_blocks_loop(self):
+        """Sweep expired blocks until the engine exits"""
+        while True:
+            try:
+                self.expire_blocks()
+            except Exception as e:
+                logger.error(f"Error expiring blocks: {e}")
+            time.sleep(self.firewall.EXPIRY_INTERVAL)
+
     def process_alert(self, alert: Dict[str, Any]):
         """Process a single alert with ML enhancement"""
         self.processed_alerts += 1
@@ -689,6 +794,7 @@ class SOAREngine:
             blocked = self.firewall.block_ip(src_ip, reason=signature)
             if blocked:
                 self.blocked_count += 1
+        expires_at = self.firewall.block_expiry.get(src_ip) if blocked else None
         
         # Create action record
         action = ActionRecord(
@@ -699,7 +805,8 @@ class SOAREngine:
             signature=signature,
             severity=severity,
             result=self._action_result(should_block, blocked, src_ip),
-            blocked=blocked
+            blocked=blocked,
+            expires_at=datetime.fromtimestamp(expires_at, timezone.utc).isoformat() if expires_at else None
         )
         
         self.reporter.add_action(action)
@@ -929,6 +1036,10 @@ class SOAREngine:
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="SOAR Engine with ML Integration")
+    try:
+        default_ttl = int(os.environ.get("VAJRA_BLOCK_TTL", "3600"))
+    except ValueError:
+        parser.error("VAJRA_BLOCK_TTL must be a whole number of seconds")
     parser.add_argument("--broker", default="localhost:9092", help="Kafka broker")
     parser.add_argument("--topic", default="suricata-alerts", help="Kafka topic")
     parser.add_argument("--eve", default="logs/eve.json", help="Eve file for fallback mode")
@@ -940,12 +1051,16 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Log block decisions without changing the firewall")
     parser.add_argument("--allow", action="append", default=[], metavar="CIDR",
                        help="Address or network that must never be blocked (repeatable)")
+    parser.add_argument("--block-ttl", type=int, default=default_ttl, metavar="SECONDS",
+                       help="seconds before a block expires, 0 keeps it (default: 3600 or VAJRA_BLOCK_TTL)")
     parser.add_argument("--load-model", help="Load a specific model file")
     parser.add_argument("--model-name", default="custom", help="Name for the loaded model")
     parser.add_argument("--model-type", default="custom", 
                        choices=['insider_threat', 'anomaly', 'ddos', 'custom'],
                        help="Type of model being loaded")
     args = parser.parse_args()
+    if args.block_ttl < 0:
+        parser.error("--block-ttl must be 0 or more")
     
     os.makedirs("logs", exist_ok=True)
     os.makedirs("logs/reports", exist_ok=True)
@@ -960,7 +1075,8 @@ def main():
         enable_packet_inspection=args.packet_inspection,
         network_interface=args.interface,
         dry_run=args.dry_run,
-        allowlist=args.allow
+        allowlist=args.allow,
+        block_ttl=args.block_ttl
     )
     
     # Load specific model if requested

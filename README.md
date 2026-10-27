@@ -127,9 +127,14 @@ Environment variables:
 | --- | --- | --- |
 | `VAJRA_INTERFACE` | auto-detected | Network interface to protect |
 | `VAJRA_ALLOWLIST` | | Comma separated addresses or networks that are never blocked |
+| `VAJRA_BLOCK_TTL` | `3600` | Seconds before a SOAR block expires; `0` makes new blocks permanent until `scripts/stop.sh` |
 | `VAJRA_API_HOST` | `127.0.0.1` | Address the event stream and inference API bind to |
 | `HTTP_PORT` | `80` (`8080` on macOS) | Port for the demo HTTP target |
 | `ML_MODELS_DIR` | `models` | Directory the SOAR engine loads models from |
+
+When running the engine directly, use `--block-ttl SECONDS` instead. Under
+sudo, pass the variable on the command line:
+`sudo VAJRA_BLOCK_TTL=600 ./scripts/start.sh`.
 
 The SOAR engine can also run on its own, for example to replay a saved
 `eve.json` without root:
@@ -189,10 +194,13 @@ docs/                Architecture and API reference
 
 ## Limitations
 
-- Blocks never expire. They last until `scripts/stop.sh` removes the
-  `inet vajra` table or, with iptables, the `VAJRA-BLOCK` chain, and the
-  SOAR engine re-applies the ones in `logs/blocked_ips.txt` when it starts
-  again.
+- Blocks expire after `VAJRA_BLOCK_TTL`, one hour by default. While the
+  engine runs it removes them within about 5 seconds of expiry. While it is
+  stopped, nftables still drops them in the kernel a few seconds after
+  expiry, but iptables rules stay until the engine starts again. The
+  remaining time is kept in `logs/block_expiry.json` across restarts. Blocks
+  saved before this version get the full TTL from the next start. An alert
+  from an address that is already blocked does not extend its block.
 - Blocks only apply to traffic to and from the host itself. The nftables
   chains hook input and output, and the iptables `VAJRA-BLOCK` chain is only
   jumped to from INPUT and OUTPUT, so traffic forwarded through the host is
@@ -209,7 +217,7 @@ docs/                Architecture and API reference
 
 Planned or being considered, none of it built yet:
 
-- Expiring blocks and an `unblock` command
+- An `unblock` command
 - Thresholds, cooldowns and rate limits on blocking
 - An offline demo with Docker Compose and pcap replay that needs no root
 - Validated models with documented training data
