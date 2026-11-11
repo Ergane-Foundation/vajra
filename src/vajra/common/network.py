@@ -194,6 +194,47 @@ def get_default_gateways() -> List[str]:
     return gateways
 
 
+def _process_title(pid: str) -> str:
+    try:
+        return Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")[0].decode(errors="replace")
+    except OSError:
+        return ""
+
+
+def get_ssh_clients() -> List[str]:
+    """Peers of SSH sessions that are logged in right now.
+
+    Only sessions past login count (sshd titles them "user@pts/0" or
+    "user@notty"), so a connection still authenticating, such as a brute
+    force, is not protected.
+    """
+    try:
+        output = subprocess.run(
+            ["ss", "-Htnp", "state", "established"], capture_output=True, text=True, timeout=5
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+
+    clients = []
+    for line in output.splitlines():
+        fields = line.split()
+        if len(fields) < 5 or '"sshd' not in fields[4]:
+            continue
+        titles = [_process_title(pid) for pid in re.findall(r"pid=(\d+)", line)]
+        if not any(t.startswith("sshd") and "@" in t for t in titles):
+            continue
+        peer = fields[3].rsplit(":", 1)[0].split("%")[0].strip("[]")
+        try:
+            address = ipaddress.ip_address(peer)
+        except ValueError:
+            continue
+        if address.version == 6 and address.ipv4_mapped:
+            address = address.ipv4_mapped
+        if str(address) not in clients:
+            clients.append(str(address))
+    return clients
+
+
 def get_network_cidr(interface: str = None) -> str:
     """
     Get the network CIDR.
@@ -239,7 +280,8 @@ def get_all_network_info() -> Dict[str, str]:
 
 
 def build_allowlist(extra: Optional[List[str]] = None, log: Optional[logging.Logger] = None) -> list:
-    """Networks that must never be blocked: loopback, this host, its gateways and DNS resolvers"""
+    """Networks that must never be blocked: loopback, this host, its gateways, DNS resolvers
+    and the clients of SSH sessions that are logged in when this runs"""
     log = log or logger
     entries = ["127.0.0.0/8", "::1/128"] + list(extra or [])
     env = os.environ.get("VAJRA_ALLOWLIST", "")
@@ -248,6 +290,10 @@ def build_allowlist(extra: Optional[List[str]] = None, log: Optional[logging.Log
         entries += [get_local_ip(), get_gateway_ip()] + get_local_addresses() + get_default_gateways()
     except Exception as e:
         log.warning(f"Could not detect local addresses for the allowlist: {e}")
+    ssh_clients = get_ssh_clients()
+    if ssh_clients:
+        log.info(f"Protecting SSH clients: {', '.join(ssh_clients)}")
+    entries += ssh_clients
     for path in RESOLV_CONF_FILES:
         try:
             for line in Path(path).read_text().splitlines():
