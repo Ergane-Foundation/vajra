@@ -29,8 +29,7 @@ def main():
         ("Kafka", "kafka.Kafka", False),
         ("Kafka Bridge", "vajra.pipeline.kafka_bridge", False),
         ("SOAR Engine", "vajra.soar.engine", True),
-        ("Unified Logger", "vajra.pipeline.unified_logger", True),
-        ("Packet Inspector", "vajra.inspection.packet_inspector", True)
+        ("Unified Logger", "vajra.pipeline.unified_logger", True)
     ]
     if Path("logs/writer.pid").exists():
         services.append(("Firewall Writer", "vajra.soar.writer"))
