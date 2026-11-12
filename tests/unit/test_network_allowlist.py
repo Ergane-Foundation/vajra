@@ -1,8 +1,9 @@
-"""Tests for build_allowlist, the addresses Vajra must never block (issue #46)."""
+"""Tests for build_allowlist, the addresses Vajra must never block (issues #46 and #80)."""
 
 import ipaddress
 import json
 import logging
+import subprocess
 
 import pytest
 
@@ -16,6 +17,7 @@ def host(monkeypatch):
     monkeypatch.setattr(network, "get_gateway_ip", lambda: "192.0.2.1")
     monkeypatch.setattr(network, "get_local_addresses", list)
     monkeypatch.setattr(network, "get_default_gateways", list)
+    monkeypatch.setattr(network, "get_ssh_clients", list)
     monkeypatch.setattr(network, "RESOLV_CONF_FILES", ())
     monkeypatch.delenv("VAJRA_ALLOWLIST", raising=False)
 
@@ -66,6 +68,60 @@ def test_reads_nameservers_and_skips_missing_files(host, monkeypatch, tmp_path):
     allowlist = network.build_allowlist()
     assert net("10.0.2.3/32") in allowlist
     assert net("fec0::3/128") in allowlist
+
+
+def test_logged_in_ssh_clients_are_protected_and_logged(host, monkeypatch, caplog):
+    monkeypatch.setattr(network, "get_ssh_clients", lambda: ["198.51.100.7", "2001:db8::7"])
+    with caplog.at_level(logging.INFO, logger="test_allowlist"):
+        allowlist = network.build_allowlist(log=logging.getLogger("test_allowlist"))
+    assert net("198.51.100.7/32") in allowlist
+    assert net("2001:db8::7/128") in allowlist
+    assert "Protecting SSH clients: 198.51.100.7, 2001:db8::7" in caplog.text
+
+
+SS_OUTPUT = """\
+0 0 192.0.2.10:22 198.51.100.7:51234 users:(("sshd",pid=1201,fd=4),("sshd",pid=1190,fd=4))
+0 0 [::ffff:192.0.2.10]:22 [::ffff:203.0.113.9]:40000 users:(("sshd-session",pid=1300,fd=4))
+0 0 [2001:db8::10]:22 [2001:db8::7]:5555 users:(("sshd",pid=1400,fd=4))
+0 0 192.0.2.10:22 198.51.100.66:60000 users:(("sshd",pid=1500,fd=4),("sshd",pid=1501,fd=4))
+0 0 192.0.2.10:443 198.51.100.8:50000 users:(("nginx",pid=900,fd=12))
+0 0 192.0.2.10:22 198.51.100.7:51300 users:(("sshd",pid=1600,fd=4))
+0 0 [fe80::10]%eth0:22 [fe80::7]%eth0:6000 users:(("sshd",pid=1700,fd=4))
+"""
+
+TITLES = {
+    "1201": "sshd: alice@pts/0",
+    "1190": "sshd: alice [priv]",
+    "1300": "sshd-session: deploy@notty",
+    "1400": "sshd: bob@pts/1",
+    "1500": "sshd: root [priv]",
+    "1501": "sshd: root [net]",
+    "900": "nginx: worker process",
+    "1600": "sshd: alice@pts/2",
+    "1700": "sshd: carol@pts/3",
+}
+
+
+def fake_ss(monkeypatch, output=SS_OUTPUT, error=None):
+    def run(cmd, **kwargs):
+        if error:
+            raise error
+        return subprocess.CompletedProcess(cmd, 0, stdout=output, stderr="")
+
+    monkeypatch.setattr(network.subprocess, "run", run)
+    monkeypatch.setattr(network, "_process_title", lambda pid: TITLES.get(pid, ""))
+
+
+def test_ssh_clients_are_logged_in_sessions_only(monkeypatch):
+    fake_ss(monkeypatch)
+    assert network.get_ssh_clients() == ["198.51.100.7", "203.0.113.9", "2001:db8::7", "fe80::7"]
+
+
+@pytest.mark.parametrize("error", [FileNotFoundError("ss"), subprocess.TimeoutExpired("ss", 5)],
+                         ids=["no-ss", "timeout"])
+def test_no_ssh_clients_when_ss_fails(monkeypatch, error):
+    fake_ss(monkeypatch, error=error)
+    assert network.get_ssh_clients() == []
 
 
 ADDR = "ip -j addr show 2>/dev/null"

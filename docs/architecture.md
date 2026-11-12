@@ -59,8 +59,10 @@ when any of these holds:
 
 Before anything is applied, the source is checked against the allowlist.
 Loopback, every address on the host, its IPv4 and IPv6 default gateways, the
-nameservers in `/etc/resolv.conf` and, when it exists, `/run/systemd/resolve/resolv.conf`, every `--allow` network and every entry in
-`VAJRA_ALLOWLIST` are never blocked.
+nameservers in `/etc/resolv.conf` and, when it exists, `/run/systemd/resolve/resolv.conf`, every `--allow` network, every entry in
+`VAJRA_ALLOWLIST` and the client of every SSH session that is logged in when
+the engine starts are never blocked. Connections still authenticating don't
+count, so a brute force in progress is not protected.
 
 A block is then applied with nftables if the `nft` binary exists, otherwise
 with iptables. In `--dry-run` mode, or when no firewall backend exists, the

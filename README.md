@@ -51,6 +51,7 @@ confidence. [docs/architecture.md](docs/architecture.md) has the details.
 | --- | --- |
 | Alert source is loopback, any address on the host, its IPv4 or IPv6 default gateways or a DNS resolver | Never blocks it |
 | Alert source is in `--allow` or `VAJRA_ALLOWLIST` | Never blocks it |
+| Alert source is the client of an SSH session that is logged in when Vajra starts | Never blocks it. Sessions opened later are not covered; use `VAJRA_ALLOWLIST` for a fixed admin address. If that address is shared, such as an office NAT or a bastion, everything behind it is covered too |
 | Connection started by any of those addresses | Suricata passes it without inspection, so no rule drops it. If the gateway NATs inbound traffic, connections forwarded through it look like the gateway and are not inspected either |
 | Started with `--dry-run` | Logs each decision as `not_enforced` and leaves the firewall alone |
 | No firewall backend, for example on macOS | Logs the decision as `not_enforced` rather than reporting a block |
