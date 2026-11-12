@@ -248,7 +248,7 @@ def test_block_record_has_expiry_and_expiry_is_recorded(engine_module, tmp_path,
     monkeypatch.setattr(engine_module.SOAREngine, "_expire_blocks_loop", lambda self: None)
     engine = engine_module.SOAREngine(enable_ml=False, block_ttl=3600)
 
-    engine.process_alert({"src_ip": "198.51.100.9", "signature": "SQL Injection", "severity": "HIGH"})
+    engine.process_alert({"src_ip": "198.51.100.9", "signature": "SQL Injection", "severity": "CRITICAL"})
     log = tmp_path / "logs" / "soar_actions.log"
     records = [json.loads(line) for line in log.read_text().splitlines()]
     assert records[-1]["blocked"] is True

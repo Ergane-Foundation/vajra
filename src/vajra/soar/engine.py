@@ -26,6 +26,7 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 
 from vajra.common.network import build_allowlist
+from vajra.soar.policy import BLOCK, RATE_LIMITED, BlockPolicy
 
 # Kafka imports
 try:
@@ -507,10 +508,12 @@ class SOAREngine:
         network_interface: str = None,
         dry_run: bool = False,
         allowlist: Optional[List[str]] = None,
-        block_ttl: int = 0
+        block_ttl: int = 0,
+        policy: Optional[BlockPolicy] = None
     ):
         self.topic = topic
         self.firewall = FirewallManager(dry_run=dry_run, allowlist=allowlist, block_ttl=block_ttl)
+        self.policy = policy or BlockPolicy()
         self.reporter = ReportGenerator()
         self.processed_alerts = 0
         self.blocked_count = 0
@@ -634,8 +637,7 @@ class SOAREngine:
         
         # Check if we should block based on ML prediction
         src_ip = prediction.features_used.get('src_ip', '')
-        if src_ip and prediction.confidence >= 0.8:
-            # High confidence ML prediction - consider blocking
+        if src_ip and prediction.confidence >= 0.8 and self._policy_decision(src_ip) == BLOCK:
             blocked = self.firewall.block_ip(
                 src_ip, 
                 reason=f"ML-{prediction.model_name}: {prediction.threat_type}"
@@ -654,7 +656,7 @@ class SOAREngine:
             )
             
             # Block if high confidence
-            if prediction.confidence >= 0.8:
+            if prediction.confidence >= 0.8 and self._policy_decision(features.src_ip) == BLOCK:
                 self.firewall.block_ip(
                     features.src_ip,
                     reason=f"Packet-ML: {prediction.threat_type}"
@@ -691,6 +693,17 @@ class SOAREngine:
         """Block on critical or high severity, which comes from the rule's classtype priority"""
         return alert.get("severity") in ("CRITICAL", "HIGH")
     
+    def _policy_decision(self, src_ip: str, critical: bool = False) -> str:
+        """Ask the block policy about a source; allowlisted sources skip it so they don't use up the rate limit"""
+        if self.firewall.is_allowlisted(src_ip):
+            return BLOCK
+        decision = self.policy.decide(src_ip, critical=critical)
+        if decision == RATE_LIMITED:
+            logger.warning(f"  Not blocking {src_ip}: more than {self.policy.max_per_minute} blocks in the last minute")
+        elif decision != BLOCK:
+            logger.info(f"  Not blocking {src_ip} yet: {decision}")
+        return decision
+
     def _action_result(self, should_block: bool, blocked: bool, src_ip: str) -> str:
         """Describe the outcome of a SOAR decision"""
         if not should_block or blocked:
@@ -767,6 +780,7 @@ class SOAREngine:
         
         # Determine action (combine Suricata + ML + UBA)
         should_block = self.should_block(alert)
+        critical = severity == "CRITICAL"
         
         # Also block if ML detected high-confidence threat
         if ml_threat_detected and any(p.confidence >= 0.75 for p in ml_predictions if p and p.is_threat):
@@ -776,8 +790,14 @@ class SOAREngine:
         # Also block if UBA detected critical insider threat
         if uba_alert and uba_alert.severity in ("HIGH", "CRITICAL"):
             should_block = True
+            critical = critical or uba_alert.severity == "CRITICAL"
             logger.info(f"  UBA critical threat - upgrading to block: {uba_alert.threat_indicator}")
         
+        decision = BLOCK
+        if should_block and src_ip:
+            decision = self._policy_decision(src_ip, critical=critical)
+            should_block = decision == BLOCK
+
         blocked = False
         
         if should_block and src_ip:
@@ -794,7 +814,7 @@ class SOAREngine:
             target_ip=src_ip,
             signature=signature,
             severity=severity,
-            result=self._action_result(should_block, blocked, src_ip),
+            result=self._action_result(should_block, blocked, src_ip) if decision == BLOCK else decision,
             blocked=blocked,
             expires_at=datetime.fromtimestamp(expires_at, timezone.utc).isoformat() if expires_at else None
         )
@@ -1026,10 +1046,13 @@ class SOAREngine:
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="SOAR Engine with ML Integration")
-    try:
-        default_ttl = int(os.environ.get("VAJRA_BLOCK_TTL", "3600"))
-    except ValueError:
-        parser.error("VAJRA_BLOCK_TTL must be a whole number of seconds")
+    def env_int(name, default):
+        try:
+            return int(os.environ.get(name, default))
+        except ValueError:
+            parser.error(f"{name} must be a whole number")
+
+    default_ttl = env_int("VAJRA_BLOCK_TTL", 3600)
     parser.add_argument("--broker", default="localhost:9092", help="Kafka broker")
     parser.add_argument("--topic", default="suricata-alerts", help="Kafka topic")
     parser.add_argument("--eve", default="logs/eve.json", help="Eve file for fallback mode")
@@ -1043,6 +1066,16 @@ def main():
                        help="Address or network that must never be blocked (repeatable)")
     parser.add_argument("--block-ttl", type=int, default=default_ttl, metavar="SECONDS",
                        help="seconds before a block expires, 0 keeps it (default: 3600 or VAJRA_BLOCK_TTL)")
+    parser.add_argument("--block-threshold", type=int, default=env_int("VAJRA_BLOCK_THRESHOLD", 3), metavar="N",
+                       help="high severity alerts from one source within the window before it is blocked; "
+                            "critical blocks on the first (default: 3 or VAJRA_BLOCK_THRESHOLD)")
+    parser.add_argument("--block-window", type=int, default=env_int("VAJRA_BLOCK_WINDOW", 60), metavar="SECONDS",
+                       help="window for --block-threshold (default: 60 or VAJRA_BLOCK_WINDOW)")
+    parser.add_argument("--block-cooldown", type=int, default=env_int("VAJRA_BLOCK_COOLDOWN", 300), metavar="SECONDS",
+                       help="seconds before a blocked source can be blocked again (default: 300 or VAJRA_BLOCK_COOLDOWN)")
+    parser.add_argument("--max-blocks-per-minute", type=int, default=env_int("VAJRA_MAX_BLOCKS_PER_MINUTE", 20),
+                       metavar="N", help="stop blocking past this many new blocks a minute "
+                                         "(default: 20 or VAJRA_MAX_BLOCKS_PER_MINUTE)")
     parser.add_argument("--load-model", help="Load a specific model file")
     parser.add_argument("--model-name", default="custom", help="Name for the loaded model")
     parser.add_argument("--model-type", default="custom", 
@@ -1051,6 +1084,11 @@ def main():
     args = parser.parse_args()
     if args.block_ttl < 0:
         parser.error("--block-ttl must be 0 or more")
+    try:
+        policy = BlockPolicy(threshold=args.block_threshold, window=args.block_window,
+                             cooldown=args.block_cooldown, max_per_minute=args.max_blocks_per_minute)
+    except ValueError as e:
+        parser.error(str(e))
     
     os.makedirs("logs", exist_ok=True)
     os.makedirs("logs/reports", exist_ok=True)
@@ -1066,7 +1104,8 @@ def main():
         network_interface=args.interface,
         dry_run=args.dry_run,
         allowlist=args.allow,
-        block_ttl=args.block_ttl
+        block_ttl=args.block_ttl,
+        policy=policy
     )
     
     # Load specific model if requested
