@@ -47,12 +47,29 @@ host's IPv6 default route.
 ## How the SOAR engine decides
 
 For each Suricata alert the engine maps Suricata's numeric severity to a
-level (1 critical, 2 high, 3 medium, 4 low) and blocks the alert's source IP
-when any of these holds:
+level (1 critical, 2 high, 3 medium, 4 low) and considers blocking the
+alert's source IP when any of these holds:
 
 - the severity is critical or high
 - an ML model flags the alert as a threat with confidence of at least 0.75
 - user behaviour analytics raises a high or critical alert for the user
+
+That only makes the source a candidate. `vajra.soar.policy` then decides
+whether it is blocked now:
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| threshold | 3 | Alerts from one source within the window before it is blocked. A critical alert, or a critical UBA alert, blocks on the first |
+| window | 60 s | How far back alerts are counted |
+| cooldown | 300 s | After a block, the same source isn't blocked again for this long; alerts in that time aren't counted |
+| max blocks per minute | 20 | Past this, new blocks are skipped and logged as `rate_limited`, on the assumption that the engine is misfiring |
+
+Blocks the ML models and the packet inspector ask for go through the same
+policy as high severity alerts. Allowlisted sources are skipped before the policy, so they never use up the
+rate limit. Each decision is written to `logs/soar_actions.log` with its
+result: `below_threshold`, `cooldown` and `rate_limited` are logged without
+a block. The settings come from the `--block-*` flags or the matching
+`VAJRA_*` environment variables listed in the README.
 
 Before anything is applied, the source is checked against the allowlist.
 Loopback, every address on the host, its IPv4 and IPv6 default gateways, the

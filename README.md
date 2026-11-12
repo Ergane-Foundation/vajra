@@ -128,11 +128,16 @@ Environment variables:
 | `VAJRA_INTERFACE` | auto-detected | Network interface to protect |
 | `VAJRA_ALLOWLIST` | | Comma separated addresses or networks that are never blocked |
 | `VAJRA_BLOCK_TTL` | `3600` | Seconds before a SOAR block expires; `0` turns expiry off for new blocks. Saved blocks are re-applied on every start, and a start with a TTL gives blocks saved without an expiry a new one |
+| `VAJRA_BLOCK_THRESHOLD` | `3` | High severity alerts from one source within the window before it is blocked. Critical alerts block on the first |
+| `VAJRA_BLOCK_WINDOW` | `60` | Seconds over which `VAJRA_BLOCK_THRESHOLD` alerts are counted |
+| `VAJRA_BLOCK_COOLDOWN` | `300` | Seconds after a block before the same source can be blocked again. A ban removed by hand within that time isn't put straight back, and a failing firewall call isn't retried on every alert |
+| `VAJRA_MAX_BLOCKS_PER_MINUTE` | `20` | New blocks allowed in any minute. Past that the engine logs `rate_limited` instead of blocking |
 | `VAJRA_API_HOST` | `127.0.0.1` | Address the event stream and inference API bind to |
 | `HTTP_PORT` | `80` (`8080` on macOS) | Port for the demo HTTP target |
 | `ML_MODELS_DIR` | `models` | Directory the SOAR engine loads models from |
 
-When running the engine directly, use `--block-ttl SECONDS` instead. Under
+When running the engine directly, use `--block-ttl`, `--block-threshold`,
+`--block-window`, `--block-cooldown` and `--max-blocks-per-minute` instead. Under
 sudo, pass the variable on the command line:
 `sudo VAJRA_BLOCK_TTL=600 ./scripts/start.sh`.
 
