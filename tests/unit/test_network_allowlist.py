@@ -163,3 +163,14 @@ def test_no_addresses_when_ip_output_is_empty(monkeypatch, output):
     fake_ip(monkeypatch, {ADDR: output, ROUTE4: output, ROUTE6: output})
     assert network.get_local_addresses() == []
     assert network.get_default_gateways() == []
+
+
+@pytest.mark.parametrize("address, network_cidr", [
+    ("10.128.0.5/20", "10.128.0.0/20"),
+    ("192.168.1.100/24", "192.168.1.0/24"),
+    ("172.16.5.4/16", "172.16.0.0/16"),
+    ("203.0.113.7/32", "203.0.113.7/32"),
+])
+def test_network_cidr_works_for_any_prefix(monkeypatch, address, network_cidr):
+    fake_ip(monkeypatch, {"ip -4 addr show eth0 2>/dev/null": f"2: eth0    inet {address} brd + scope global eth0"})
+    assert network.get_network_cidr("eth0") == network_cidr
