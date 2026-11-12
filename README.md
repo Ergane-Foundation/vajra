@@ -41,9 +41,8 @@ traffic ─► iptables NFQUEUE ─► Suricata (inline, rules/local.rules)
 Suricata inspects traffic from an NFQUEUE and writes its events to
 `logs/eve.json`. Each Python service tails that file on its own. The SOAR
 engine blocks the source of an alert when the alert is critical or high
-severity, when its signature names an attack class such as SQL injection or
-scanning, or when an ML model or behaviour analytics flags it with high
-confidence. [docs/architecture.md](docs/architecture.md) has the details.
+severity, which comes from the rule's classtype priority, or when an ML model
+or behaviour analytics flags it with high confidence. [docs/architecture.md](docs/architecture.md) has the details.
 
 ## Safety
 
