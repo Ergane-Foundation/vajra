@@ -28,16 +28,16 @@ class TestSOAREngineShouldBlock:
         assert soar_engine.should_block(alert) is True
 
     @pytest.mark.parametrize("severity", ["MEDIUM", "LOW"])
-    def test_does_not_block_medium_and_low_without_keywords(self, soar_engine, severity):
-        """Medium and Low alerts without attack keywords should not trigger a block."""
+    def test_does_not_block_medium_and_low(self, soar_engine, severity):
+        """Medium and Low alerts should not trigger a block."""
         alert = {
             "severity": severity,
             "signature": "Routine connection established",
         }
         assert soar_engine.should_block(alert) is False
 
-    def test_default_severity_without_keywords_does_not_block(self, soar_engine):
-        """Alerts missing severity default to LOW and should not block unless matching a keyword."""
+    def test_missing_severity_does_not_block(self, soar_engine):
+        """Alerts without a severity should not block."""
         alert = {
             "signature": "Routine DNS query",
         }
@@ -56,51 +56,16 @@ class TestSOAREngineShouldBlock:
         assert soar_engine.should_block(alert) is False
 
     @pytest.mark.parametrize(
-        "keyword",
+        "signature",
         [
-            "vajra",
-            "sql injection",
-            "xss",
-            "command injection",
-            "traversal",
-            "brute force",
-            "ddos",
-            "flood",
-            "c2",
-            "exfil",
-            "spoof",
-            "scan",
+            "VAJRA DROP Port Scan - SYN",
+            "ET SCAN Possible Nmap User-Agent Observed",
+            "ET INFO AWS EC2 Instance Metadata Request",
+            "SQL Injection, XSS, Command Injection, Traversal, Brute Force, DDoS, Flood, C2, Exfil, Spoof",
         ],
     )
-    def test_blocks_every_signature_keyword_even_at_low_severity(self, soar_engine, keyword):
-        """Every signature keyword must trigger a block regardless of severity."""
-        alert = {
-            "severity": "LOW",
-            "signature": f"Detected suspicious activity: {keyword} attack pattern",
-        }
-        assert soar_engine.should_block(alert) is True
-
-    @pytest.mark.parametrize(
-        "keyword",
-        [
-            "vajra",
-            "sql injection",
-            "xss",
-            "command injection",
-            "traversal",
-            "brute force",
-            "ddos",
-            "flood",
-            "c2",
-            "exfil",
-            "spoof",
-            "scan",
-        ],
-    )
-    def test_keyword_matching_is_case_insensitive(self, soar_engine, keyword):
-        """Keyword matching in signatures must be case-insensitive."""
-        alert = {
-            "severity": "LOW",
-            "signature": f"PATTERN MATCH: {keyword.upper()}",
-        }
-        assert soar_engine.should_block(alert) is True
+    @pytest.mark.parametrize("severity", ["MEDIUM", "LOW"])
+    def test_words_in_the_signature_do_not_decide_a_block(self, soar_engine, severity, signature):
+        """Only severity decides; a low priority rule that mentions an attack class is not a ban (#100)."""
+        alert = {"severity": severity, "signature": signature}
+        assert soar_engine.should_block(alert) is False

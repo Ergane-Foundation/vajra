@@ -688,26 +688,8 @@ class SOAREngine:
         return list(predictions.values())
     
     def should_block(self, alert: Dict[str, Any]) -> bool:
-        """Determine if alert should trigger a block"""
-        severity = alert.get("severity") or "LOW"
-        signature = (alert.get("signature") or "").lower()
-        
-        # Always block critical/high severity
-        if severity in ("CRITICAL", "HIGH"):
-            return True
-        
-        # Block specific attack types regardless of severity
-        block_keywords = [
-            "vajra", "sql injection", "xss", "command injection",
-            "traversal", "brute force", "ddos", "flood", "c2",
-            "exfil", "spoof", "scan"
-        ]
-        
-        for keyword in block_keywords:
-            if keyword in signature:
-                return True
-        
-        return False
+        """Block on critical or high severity, which comes from the rule's classtype priority"""
+        return alert.get("severity") in ("CRITICAL", "HIGH")
     
     def _action_result(self, should_block: bool, blocked: bool, src_ip: str) -> str:
         """Describe the outcome of a SOAR decision"""

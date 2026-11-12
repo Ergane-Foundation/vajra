@@ -51,9 +51,6 @@ level (1 critical, 2 high, 3 medium, 4 low) and blocks the alert's source IP
 when any of these holds:
 
 - the severity is critical or high
-- the signature contains one of: `vajra`, `sql injection`, `xss`,
-  `command injection`, `traversal`, `brute force`, `ddos`, `flood`, `c2`,
-  `exfil`, `spoof`, `scan`
 - an ML model flags the alert as a threat with confidence of at least 0.75
 - user behaviour analytics raises a high or critical alert for the user
 
