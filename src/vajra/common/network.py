@@ -247,18 +247,9 @@ def get_network_cidr(interface: str = None) -> str:
     
     ip_output = run_command(f"ip -4 addr show {interface} 2>/dev/null")
     if ip_output:
-        match = re.search(r'inet\s+(\d+\.\d+\.\d+\.\d+)/(\d+)', ip_output)
+        match = re.search(r'inet\s+(\d+\.\d+\.\d+\.\d+/\d+)', ip_output)
         if match:
-            ip = match.group(1)
-            prefix = match.group(2)
-            # Calculate network address
-            parts = ip.split('.')
-            if prefix == '24':
-                parts[3] = '0'
-            elif prefix == '16':
-                parts[2] = '0'
-                parts[3] = '0'
-            return f"{'.'.join(parts)}/{prefix}"
+            return str(ipaddress.ip_interface(match.group(1)).network)
     
     return '192.168.1.0/24'
 
