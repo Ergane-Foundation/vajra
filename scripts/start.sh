@@ -99,6 +99,7 @@ ENABLE_ML="true"
 ENABLE_PACKET_INSPECTION="true"  # Always enabled as requested
 ENABLE_HTTP_SERVER="true"
 SOAR_DRY_RUN="false"
+USE_WRITER="false"
 ENABLE_INFERENCE_API="true"
 ENABLE_KAFKA_BRIDGE="false"
 ML_MODELS_DIR="${ML_MODELS_DIR:-models}"
@@ -113,6 +114,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dry-run)
             SOAR_DRY_RUN="true"
+            shift
+            ;;
+        --writer)
+            USE_WRITER="true"
             shift
             ;;
         --no-api)
@@ -131,6 +136,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --no-api     Skip starting Inference API"
             echo "  --kafka      Start Kafka Bridge"
             echo "  --dry-run    Log SOAR block decisions without changing the firewall"
+            echo "  --writer     Apply blocks through a separate firewall writer and run the SOAR engine as the vajra user"
             echo "  --help       Show this help message"
             echo ""
             echo "Environment Variables (optional - all are auto-detected):"
@@ -290,6 +296,8 @@ if [ -f "$LOGS_DIR/suricata.pid" ]; then
     rm -f "$LOGS_DIR/suricata.pid"
 fi
 pkill -f "vajra.soar.engine" 2>/dev/null || true
+pkill -f "vajra.soar.writer" 2>/dev/null || true
+rm -f "$LOGS_DIR/writer.pid"
 pkill -f "vajra.pipeline.unified_logger" 2>/dev/null || true
 pkill -f "vajra.pipeline.kafka_bridge" 2>/dev/null || true
 pkill -f "vajra.inspection.packet_inspector" 2>/dev/null || true
@@ -626,11 +634,83 @@ echo -e "${YELLOW}[5/8] Starting SOAR Engine (ML + Packet Inspection)...${NC}"
 # Build SOAR command - ALWAYS enable ML and packet inspection
 SOAR_CMD="$PYTHON_CMD -m vajra.soar.engine --file-mode --ml-models-dir $ML_MODELS_DIR"
 SOAR_CMD="$SOAR_CMD --packet-inspection --interface $INTERFACE"
-if [ "$SOAR_DRY_RUN" = "true" ]; then
+if [ "$SOAR_DRY_RUN" = "true" ] && [ "$USE_WRITER" != "true" ]; then
     SOAR_CMD="$SOAR_CMD --dry-run"
 fi
 
-nohup $SOAR_CMD > logs/soar.out 2>&1 &
+if [ "$USE_WRITER" = "true" ]; then
+    getent group vajra > /dev/null || groupadd --system vajra
+    id -u vajra > /dev/null 2>&1 || useradd --system --gid vajra --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin vajra
+
+    if ! setpriv --reuid=vajra --regid=vajra --init-groups -- "$PYTHON_CMD" -c "import vajra.soar.writer_client" > /dev/null 2>&1; then
+        echo -e "${RED}  [FAIL] The vajra user cannot run $PYTHON_CMD from $ROOT_DIR${NC}"
+        echo "    Give it read access to the checkout and its parent directories, or start without --writer"
+        exit 1
+    fi
+
+    getent group vajra-writer > /dev/null || groupadd --system vajra-writer
+    id -u vajra-writer > /dev/null 2>&1 || useradd --system --gid vajra-writer --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin vajra-writer
+
+    # Same test as FirewallManager._detect_backend: iptables-legacy needs the root-owned xtables lock
+    if command -v nft > /dev/null 2>&1; then
+        WRITER_USER=vajra-writer
+    else
+        WRITER_USER=root
+        echo -e "${YELLOW}  [WARN] No nft found: the firewall writer stays root, because iptables-legacy needs the root-owned xtables lock${NC}"
+    fi
+
+    # logs/ stays root-owned; each service only gets the files it writes, so root never meets a symlink there
+    own_file() {
+        local user=$1
+        shift
+        for path in "$@"; do
+            [ -L "$path" ] && rm -f "$path"
+            touch "$path"
+            chown "$user:$user" "$path"
+            chmod 644 "$path"
+        done
+    }
+    for f in soar_engine.log soar_actions.log ml_model_manager.log ml_predictions.json uba_engine.log uba_alerts.json packet_inspector.log packet_inspector.json unified_events.json; do
+        own_file vajra "$LOGS_DIR/$f"
+    done
+    own_file "$WRITER_USER" "$LOGS_DIR/blocked_ips.txt" "$LOGS_DIR/block_expiry.json" "$LOGS_DIR/writer.log"
+    [ -L "$LOGS_DIR/reports" ] && rm -f "$LOGS_DIR/reports"
+    mkdir -p "$LOGS_DIR/reports"
+    chown vajra:vajra "$LOGS_DIR/reports"
+    chmod 2775 "$LOGS_DIR/reports"
+    if [ -e "$LOGS_DIR/eve.json" ]; then
+        chgrp vajra "$LOGS_DIR/eve.json"
+        chmod g+r "$LOGS_DIR/eve.json"
+    fi
+
+    install -d -m 2750 -o "$WRITER_USER" -g vajra /run/vajra
+    WRITER_CMD="$PYTHON_CMD -m vajra.soar.writer --socket /run/vajra/writer.sock --group vajra"
+    if [ "$SOAR_DRY_RUN" = "true" ]; then
+        WRITER_CMD="$WRITER_CMD --dry-run"
+    fi
+    rm -f /run/vajra/writer.sock
+    if [ "$WRITER_USER" = "vajra-writer" ]; then
+        nohup env VAJRA_ALLOWLIST="$PROTECTED" setpriv --reuid=vajra-writer --regid=vajra-writer --clear-groups --bounding-set=-all,+net_admin --inh-caps=-all,+net_admin --ambient-caps=-all,+net_admin --no-new-privs -- $WRITER_CMD > logs/writer.out 2>&1 &
+    else
+        nohup env VAJRA_ALLOWLIST="$PROTECTED" $WRITER_CMD > logs/writer.out 2>&1 &
+    fi
+    WRITER_PID=$!
+    echo $WRITER_PID > logs/writer.pid
+    for i in $(seq 1 20); do
+        [ -S /run/vajra/writer.sock ] && break
+        sleep 0.5
+    done
+    if [ ! -S /run/vajra/writer.sock ] || ! kill -0 $WRITER_PID 2>/dev/null; then
+        echo -e "${RED}  [FAIL] Firewall writer failed to start${NC}"
+        echo "    Check logs/writer.out for errors"
+        exit 1
+    fi
+    echo -e "${GREEN}  [OK] Firewall writer started (PID: $WRITER_PID)${NC}"
+    SOAR_CMD="$SOAR_CMD --writer-socket /run/vajra/writer.sock"
+    nohup setpriv --reuid=vajra --regid=vajra --init-groups --bounding-set=-all,+net_raw --no-new-privs --inh-caps=+net_raw --ambient-caps=+net_raw -- $SOAR_CMD > logs/soar.out 2>&1 &
+else
+    nohup $SOAR_CMD > logs/soar.out 2>&1 &
+fi
 SOAR_PID=$!
 echo $SOAR_PID > logs/soar.pid
 sleep 2
@@ -780,6 +860,9 @@ echo "  ML Predictions: logs/ml_predictions.json"
 echo "  Unified Events: logs/unified_events.json"
 echo "  SOAR Actions:   logs/soar_actions.log"
 echo "  SOAR Engine:    logs/soar_engine.log"
+if [ "$USE_WRITER" = "true" ]; then
+    echo "  Firewall Writer: logs/writer.log"
+fi
 
 echo ""
 echo -e "${BOLD}Test Attack:${NC}"

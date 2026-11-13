@@ -30,10 +30,10 @@ def engine_module(tmp_path, monkeypatch):
     """Import the engine from a scratch directory with nft present, a loopback-only allowlist and a fixed clock."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "logs").mkdir()
-    from vajra.soar import engine
+    from vajra.soar import engine, firewall
 
     monkeypatch.setattr(engine.FirewallManager, "_detect_backend", lambda self: "nftables")
-    monkeypatch.setattr(engine, "build_allowlist", lambda extra=None, log=None: [ipaddress.ip_network("127.0.0.0/8")])
+    monkeypatch.setattr(firewall, "build_allowlist", lambda extra=None, log=None: [ipaddress.ip_network("127.0.0.0/8")])
     monkeypatch.setattr(engine.time, "time", lambda: 1000.0)
     return engine
 

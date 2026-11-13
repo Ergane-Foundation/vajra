@@ -97,6 +97,17 @@ logs each one as an `UNBLOCK_IP` record, and each block record has
 `expires_at`. nftables elements also get a kernel timeout a few seconds
 longer, so blocks still expire while the engine is stopped.
 
+With `--writer`, the engine does not change the firewall itself. It sends
+each block to `vajra.soar.writer`, a small process that listens on
+`/run/vajra/writer.sock`. The writer checks the protected set again and caps
+new blocks per minute, while the engine runs as the unprivileged `vajra` user.
+The writer runs as the `vajra-writer` user with only `CAP_NET_ADMIN`. On hosts
+without nft it stays root with `CAP_NET_ADMIN` and `CAP_NET_RAW`, because
+iptables-legacy takes the root-owned `/run/xtables.lock`. `logs/` stays owned
+by root. Each service owns only the files it writes, and the engine owns
+`logs/reports/`. The protocol is described in
+[writer-protocol.md](writer-protocol.md).
+
 ## Experimental components
 
 Code under `src/vajra/experimental/` is not started by any script:
@@ -117,6 +128,7 @@ does not build yet.
 | `logs/eve.json` | Suricata events |
 | `logs/unified_events.json` | Combined Suricata, SOAR and ML events |
 | `logs/soar_actions.log` | Every SOAR decision and its result |
+| `logs/writer.log` | Requests and firewall changes of the firewall writer, with `--writer` |
 | `logs/blocked_ips.txt` | IPs the SOAR engine has blocked |
 | `logs/block_expiry.json` | Expiry time of each timed block |
 | `logs/reports/` | One JSON report per applied block |

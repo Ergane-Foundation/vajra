@@ -32,6 +32,8 @@ def main():
         ("Unified Logger", "vajra.pipeline.unified_logger", True),
         ("Packet Inspector", "vajra.inspection.packet_inspector", True)
     ]
+    if Path("logs/writer.pid").exists():
+        services.append(("Firewall Writer", "vajra.soar.writer"))
     
     for name, proc, required in services:
         if check_process(proc):
