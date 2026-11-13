@@ -25,16 +25,21 @@ def main():
     # Process status
     print("\n[Services]")
     services = [
-        ("Suricata", "suricata"),
-        ("Kafka", "kafka.Kafka"),
-        ("Kafka Bridge", "vajra.pipeline.kafka_bridge"),
-        ("SOAR Engine", "vajra.soar.engine"),
-        ("Unified Logger", "vajra.pipeline.unified_logger"),
-        ("Packet Inspector", "vajra.inspection.packet_inspector")
+        ("Suricata", "suricata", True),
+        ("Kafka", "kafka.Kafka", False),
+        ("Kafka Bridge", "vajra.pipeline.kafka_bridge", False),
+        ("SOAR Engine", "vajra.soar.engine", True),
+        ("Unified Logger", "vajra.pipeline.unified_logger", True),
+        ("Packet Inspector", "vajra.inspection.packet_inspector", True)
     ]
     
-    for name, proc in services:
-        status = "[OK] Running" if check_process(proc) else "[FAIL] Stopped"
+    for name, proc, required in services:
+        if check_process(proc):
+            status = "[OK] Running"
+        elif required:
+            status = "[FAIL] Stopped"
+        else:
+            status = "[SKIP] Not enabled"
         print(f"  {name}: {status}")
     
     # ML Models

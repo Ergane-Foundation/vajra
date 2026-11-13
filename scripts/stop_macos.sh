@@ -120,7 +120,7 @@ else
     pkill -f "vajra.api.inference" 2>/dev/null && echo -e "${GREEN}  [OK] Stopped${NC}" || echo "  - Not running"
 fi
 
-# Step 7: Stop Kafka Bridge
+# Step 7: Stop Kafka Bridge (if running)
 echo ""
 echo -e "${YELLOW}[7/8] Stopping Kafka Bridge...${NC}"
 if [ -f logs/bridge.pid ]; then
@@ -128,7 +128,7 @@ if [ -f logs/bridge.pid ]; then
     kill $PID 2>/dev/null && echo -e "${GREEN}  [OK] Stopped (PID: $PID)${NC}" || echo "  - Already stopped"
     rm -f logs/bridge.pid
 else
-    pkill -f "vajra.pipeline.kafka_bridge" 2>/dev/null && echo -e "${GREEN}  [OK] Stopped${NC}" || echo "  - Not running"
+    pkill -f "vajra.pipeline.kafka_bridge" 2>/dev/null && echo -e "${GREEN}  [OK] Stopped${NC}" || echo "  - Not enabled"
 fi
 
 # Step 8: Stop Packet Inspector (if running separately)

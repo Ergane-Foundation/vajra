@@ -16,7 +16,7 @@ and decide what else to do about it.
 | SOAR engine | `vajra.soar.engine` | Tails `eve.json`, decides whether to block the source, applies the block |
 | Inference API | `vajra.api.inference` | Serves model predictions over HTTP on port 8001 |
 | Event stream | `vajra.pipeline.eve_watcher` | Streams raw `eve.json` events over WebSocket on port 8000 |
-| Kafka bridge | `vajra.pipeline.kafka_bridge` | Publishes alerts to the `suricata-alerts` topic when Kafka is running |
+| Kafka bridge | `vajra.pipeline.kafka_bridge` | Publishes alerts to the `suricata-alerts` topic. Started only with `--kafka` |
 
 On macOS, `scripts/start_macos.sh` runs Suricata in passive pcap mode. It
 detects but cannot drop packets, and the SOAR engine has no firewall to
