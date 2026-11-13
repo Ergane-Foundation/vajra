@@ -99,6 +99,7 @@ ENABLE_ML="true"
 ENABLE_PACKET_INSPECTION="true"  # Always enabled as requested
 ENABLE_HTTP_SERVER="true"
 SOAR_DRY_RUN="false"
+USE_WRITER="false"
 ENABLE_INFERENCE_API="true"
 ML_MODELS_DIR="${ML_MODELS_DIR:-models}"
 HTTP_PORT="${HTTP_PORT:-80}"
@@ -114,6 +115,10 @@ while [[ $# -gt 0 ]]; do
             SOAR_DRY_RUN="true"
             shift
             ;;
+        --writer)
+            USE_WRITER="true"
+            shift
+            ;;
         --no-api)
             ENABLE_INFERENCE_API="false"
             shift
@@ -125,6 +130,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --no-http    Skip starting HTTP server"
             echo "  --no-api     Skip starting Inference API"
             echo "  --dry-run    Log SOAR block decisions without changing the firewall"
+            echo "  --writer     Apply blocks through a separate root writer and run the SOAR engine as the vajra user"
             echo "  --help       Show this help message"
             echo ""
             echo "Environment Variables (optional - all are auto-detected):"
@@ -284,6 +290,7 @@ if [ -f "$LOGS_DIR/suricata.pid" ]; then
     rm -f "$LOGS_DIR/suricata.pid"
 fi
 pkill -f "vajra.soar.engine" 2>/dev/null || true
+pkill -f "vajra.soar.writer" 2>/dev/null || true
 pkill -f "vajra.pipeline.unified_logger" 2>/dev/null || true
 pkill -f "vajra.pipeline.kafka_bridge" 2>/dev/null || true
 pkill -f "vajra.inspection.packet_inspector" 2>/dev/null || true
@@ -620,11 +627,63 @@ echo -e "${YELLOW}[5/8] Starting SOAR Engine (ML + Packet Inspection)...${NC}"
 # Build SOAR command - ALWAYS enable ML and packet inspection
 SOAR_CMD="$PYTHON_CMD -m vajra.soar.engine --file-mode --ml-models-dir $ML_MODELS_DIR"
 SOAR_CMD="$SOAR_CMD --packet-inspection --interface $INTERFACE"
-if [ "$SOAR_DRY_RUN" = "true" ]; then
+if [ "$SOAR_DRY_RUN" = "true" ] && [ "$USE_WRITER" != "true" ]; then
     SOAR_CMD="$SOAR_CMD --dry-run"
 fi
 
-nohup $SOAR_CMD > logs/soar.out 2>&1 &
+if [ "$USE_WRITER" = "true" ]; then
+    getent group vajra > /dev/null || groupadd --system vajra
+    id -u vajra > /dev/null 2>&1 || useradd --system --gid vajra --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin vajra
+
+    if ! setpriv --reuid=vajra --regid=vajra --init-groups -- "$PYTHON_CMD" -c "import vajra.soar.writer_client" > /dev/null 2>&1; then
+        echo -e "${RED}  [FAIL] The vajra user cannot run $PYTHON_CMD from $ROOT_DIR${NC}"
+        echo "    Give it read access to the checkout and its parent directories, or start without --writer"
+        exit 1
+    fi
+
+    # The writer keeps no CAP_DAC_OVERRIDE, so root must own the directory it saves its state in
+    chown root:vajra "$LOGS_DIR"
+    chgrp vajra "$LOGS_DIR/reports"
+    for f in blocked_ips.txt block_expiry.json; do
+        [ -e "$LOGS_DIR/$f" ] && chown root "$LOGS_DIR/$f"
+    done
+    chmod 1775 "$LOGS_DIR"
+    chmod 2775 "$LOGS_DIR/reports"
+    for f in soar_engine.log soar_actions.log unified_events.json ml_predictions.json ml_model_manager.log packet_inspector.log packet_inspector.json uba_engine.log uba_alerts.json; do
+        if [ -e "$LOGS_DIR/$f" ]; then
+            chgrp vajra "$LOGS_DIR/$f"
+            chmod g+w "$LOGS_DIR/$f"
+        fi
+    done
+    if [ -e "$LOGS_DIR/eve.json" ]; then
+        chgrp vajra "$LOGS_DIR/eve.json"
+        chmod g+r "$LOGS_DIR/eve.json"
+    fi
+
+    install -d -m 2750 -o root -g vajra /run/vajra
+    WRITER_CMD="$PYTHON_CMD -m vajra.soar.writer --socket /run/vajra/writer.sock --group vajra"
+    if [ "$SOAR_DRY_RUN" = "true" ]; then
+        WRITER_CMD="$WRITER_CMD --dry-run"
+    fi
+    rm -f /run/vajra/writer.sock
+    nohup $WRITER_CMD > logs/writer.out 2>&1 &
+    WRITER_PID=$!
+    echo $WRITER_PID > logs/writer.pid
+    for i in $(seq 1 20); do
+        [ -S /run/vajra/writer.sock ] && break
+        sleep 0.5
+    done
+    if [ ! -S /run/vajra/writer.sock ] || ! kill -0 $WRITER_PID 2>/dev/null; then
+        echo -e "${RED}  [FAIL] Firewall writer failed to start${NC}"
+        echo "    Check logs/writer.out for errors"
+        exit 1
+    fi
+    echo -e "${GREEN}  [OK] Firewall writer started (PID: $WRITER_PID)${NC}"
+    SOAR_CMD="$SOAR_CMD --writer-socket /run/vajra/writer.sock"
+    nohup setpriv --reuid=vajra --regid=vajra --init-groups --bounding-set=-all,+net_raw --no-new-privs --inh-caps=+net_raw --ambient-caps=+net_raw -- $SOAR_CMD > logs/soar.out 2>&1 &
+else
+    nohup $SOAR_CMD > logs/soar.out 2>&1 &
+fi
 SOAR_PID=$!
 echo $SOAR_PID > logs/soar.pid
 sleep 2
@@ -769,6 +828,9 @@ echo "  ML Predictions: logs/ml_predictions.json"
 echo "  Unified Events: logs/unified_events.json"
 echo "  SOAR Actions:   logs/soar_actions.log"
 echo "  SOAR Engine:    logs/soar_engine.log"
+if [ "$USE_WRITER" = "true" ]; then
+    echo "  Firewall Writer: logs/writer.log"
+fi
 
 echo ""
 echo -e "${BOLD}Test Attack:${NC}"

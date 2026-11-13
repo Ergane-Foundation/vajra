@@ -44,10 +44,10 @@ def engine_module(tmp_path, monkeypatch):
     """Import the engine from a scratch directory with iptables as the backend and a loopback-only allowlist."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "logs").mkdir()
-    from vajra.soar import engine
+    from vajra.soar import engine, firewall
 
     monkeypatch.setattr(engine.FirewallManager, "_detect_backend", lambda self: "iptables")
-    monkeypatch.setattr(engine, "build_allowlist", lambda extra=None, log=None: [ipaddress.ip_network("127.0.0.0/8")])
+    monkeypatch.setattr(firewall, "build_allowlist", lambda extra=None, log=None: [ipaddress.ip_network("127.0.0.0/8")])
     return engine
 
 

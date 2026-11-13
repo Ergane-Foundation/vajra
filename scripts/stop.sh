@@ -149,6 +149,14 @@ else
     pkill -f "vajra.soar.engine" 2>/dev/null && echo -e "${GREEN}  [OK] Stopped${NC}" || echo "  - Not running"
 fi
 
+if [ -f logs/writer.pid ]; then
+    PID=$(cat logs/writer.pid)
+    kill $PID 2>/dev/null && echo -e "${GREEN}  [OK] Stopped writer (PID: $PID)${NC}" || echo "  - Writer already stopped"
+    rm -f logs/writer.pid
+else
+    pkill -f "vajra.soar.writer" 2>/dev/null && echo -e "${GREEN}  [OK] Stopped writer${NC}" || echo "  - Writer not running"
+fi
+
 # Step 5: Stop Unified Logger
 echo ""
 echo -e "${YELLOW}[5/8] Stopping Unified Logger...${NC}"

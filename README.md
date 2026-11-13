@@ -118,6 +118,7 @@ Options for `scripts/start.sh` and `scripts/start_macos.sh`:
 | Option | Description |
 | --- | --- |
 | `--dry-run` | Log SOAR block decisions without changing the firewall |
+| `--writer` | Apply blocks through a separate root writer and run the SOAR engine as the `vajra` user. Linux only |
 | `--no-http` | Do not start the demo HTTP target |
 | `--no-api` | Do not start the inference API |
 
@@ -132,6 +133,8 @@ Environment variables:
 | `VAJRA_BLOCK_WINDOW` | `60` | Seconds over which `VAJRA_BLOCK_THRESHOLD` alerts are counted |
 | `VAJRA_BLOCK_COOLDOWN` | `300` | Seconds after a block before the same source can be blocked again. A ban removed by hand within that time isn't put straight back, and a failing firewall call isn't retried on every alert |
 | `VAJRA_MAX_BLOCKS_PER_MINUTE` | `20` | New blocks allowed in any minute. Past that the engine logs `rate_limited` instead of blocking |
+| `VAJRA_WRITER_SOCKET` | `/run/vajra/writer.sock` | Socket of the firewall writer, used with `--writer` |
+| `VAJRA_WRITER_MAX_BLOCKS_PER_MINUTE` | `60` | New blocks the firewall writer accepts in any minute |
 | `VAJRA_API_HOST` | `127.0.0.1` | Address the event stream and inference API bind to |
 | `HTTP_PORT` | `80` (`8080` on macOS) | Port for the demo HTTP target |
 | `ML_MODELS_DIR` | `models` | Directory the SOAR engine loads models from |

@@ -103,11 +103,12 @@ def engine(tmp_path, monkeypatch, clock):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "logs").mkdir()
     from vajra.soar import engine as engine_module
+    from vajra.soar import firewall
 
     for flag in ("KAFKA_AVAILABLE", "UNIFIED_LOGGER_AVAILABLE", "UBA_AVAILABLE"):
         monkeypatch.setattr(engine_module, flag, False)
     monkeypatch.setattr(engine_module.FirewallManager, "_detect_backend", lambda self: "nftables")
-    monkeypatch.setattr(engine_module, "build_allowlist",
+    monkeypatch.setattr(firewall, "build_allowlist",
                         lambda extra=None, log=None: [ipaddress.ip_network("127.0.0.0/8")])
     monkeypatch.setattr(engine_module.subprocess, "run",
                         lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, stdout="", stderr=""))

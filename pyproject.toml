@@ -32,6 +32,7 @@ dev = ["pytest>=8", "ruff>=0.6"]
 
 [project.scripts]
 vajra-soar = "vajra.soar.engine:main"
+vajra-writer = "vajra.soar.writer:main"
 vajra-logger = "vajra.pipeline.unified_logger:main"
 vajra-kafka-bridge = "vajra.pipeline.kafka_bridge:main"
 vajra-inference-api = "vajra.api.inference:main"
