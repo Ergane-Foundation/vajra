@@ -126,6 +126,9 @@ Options for `scripts/start.sh` and `scripts/start_macos.sh`:
 With `--writer`, the SOAR engine runs as the `vajra` user and the firewall
 writer as the `vajra-writer` user.
 
+With `--writer`, the SOAR engine runs as the `vajra` user and the firewall
+writer as the `vajra-writer` user.
+
 Environment variables:
 
 | Variable | Default | Description |
