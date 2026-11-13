@@ -118,9 +118,12 @@ Options for `scripts/start.sh` and `scripts/start_macos.sh`:
 | Option | Description |
 | --- | --- |
 | `--dry-run` | Log SOAR block decisions without changing the firewall |
-| `--writer` | Apply blocks through a separate root writer and run the SOAR engine as the `vajra` user. Linux only |
+| `--writer` | Apply blocks through a separate firewall writer and run the SOAR engine as the `vajra` user. Linux only |
 | `--no-http` | Do not start the demo HTTP target |
 | `--no-api` | Do not start the inference API |
+
+With `--writer`, the SOAR engine runs as the `vajra` user and the firewall
+writer as the `vajra-writer` user.
 
 Environment variables:
 

@@ -169,6 +169,19 @@ def test_socket_round_trip(env):
         shutil.rmtree(directory, ignore_errors=True)
 
 
+def test_prepare_socket_works_without_root(env):
+    directory = tempfile.mkdtemp(dir="/tmp")
+    path = os.path.join(directory, "w.sock")
+    try:
+        sock = env["writer"].prepare_socket(path, os.getgid())
+        sock.close()
+        info = os.stat(path)
+        assert info.st_mode & 0o777 == 0o660
+        assert info.st_gid == os.stat(directory).st_gid == os.getgid()
+    finally:
+        shutil.rmtree(directory, ignore_errors=True)
+
+
 def test_client_without_a_writer_fails_quietly(env, monkeypatch):
     monkeypatch.setattr(env["client"].time, "sleep", lambda seconds: None)
     client = env["client"].WriterClient("/tmp/vajra-no-such-writer.sock")

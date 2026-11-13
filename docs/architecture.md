@@ -98,13 +98,14 @@ logs each one as an `UNBLOCK_IP` record, and each block record has
 longer, so blocks still expire while the engine is stopped.
 
 With `--writer`, the engine does not change the firewall itself. It sends
-each block to `vajra.soar.writer`, a small root process that listens on
-`/run/vajra/writer.sock`. The writer checks the protected set again, caps new
-blocks per minute and keeps only `CAP_NET_ADMIN` (plus `CAP_NET_RAW` with
-iptables, which needs it), while the engine runs as the unprivileged `vajra`
-user. The writer has no `CAP_DAC_OVERRIDE`, so `start.sh` makes `logs/` owned
-by root, group `vajra`, for it to save `blocked_ips.txt` and
-`block_expiry.json`. The protocol is described in
+each block to `vajra.soar.writer`, a small process that listens on
+`/run/vajra/writer.sock`. The writer checks the protected set again and caps
+new blocks per minute, while the engine runs as the unprivileged `vajra` user.
+The writer runs as the `vajra-writer` user with only `CAP_NET_ADMIN`. On hosts
+without nft it stays root with `CAP_NET_ADMIN` and `CAP_NET_RAW`, because
+iptables-legacy takes the root-owned `/run/xtables.lock`. `logs/` stays owned
+by root. Each service owns only the files it writes, and the engine owns
+`logs/reports/`. The protocol is described in
 [writer-protocol.md](writer-protocol.md).
 
 ## Experimental components

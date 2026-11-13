@@ -130,7 +130,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --no-http    Skip starting HTTP server"
             echo "  --no-api     Skip starting Inference API"
             echo "  --dry-run    Log SOAR block decisions without changing the firewall"
-            echo "  --writer     Apply blocks through a separate root writer and run the SOAR engine as the vajra user"
+            echo "  --writer     Apply blocks through a separate firewall writer and run the SOAR engine as the vajra user"
             echo "  --help       Show this help message"
             echo ""
             echo "Environment Variables (optional - all are auto-detected):"
@@ -291,6 +291,7 @@ if [ -f "$LOGS_DIR/suricata.pid" ]; then
 fi
 pkill -f "vajra.soar.engine" 2>/dev/null || true
 pkill -f "vajra.soar.writer" 2>/dev/null || true
+rm -f "$LOGS_DIR/writer.pid"
 pkill -f "vajra.pipeline.unified_logger" 2>/dev/null || true
 pkill -f "vajra.pipeline.kafka_bridge" 2>/dev/null || true
 pkill -f "vajra.inspection.packet_inspector" 2>/dev/null || true
@@ -641,32 +642,52 @@ if [ "$USE_WRITER" = "true" ]; then
         exit 1
     fi
 
-    # The writer keeps no CAP_DAC_OVERRIDE, so root must own the directory it saves its state in
-    chown root:vajra "$LOGS_DIR"
-    chgrp vajra "$LOGS_DIR/reports"
-    for f in blocked_ips.txt block_expiry.json; do
-        [ -e "$LOGS_DIR/$f" ] && chown root "$LOGS_DIR/$f"
+    getent group vajra-writer > /dev/null || groupadd --system vajra-writer
+    id -u vajra-writer > /dev/null 2>&1 || useradd --system --gid vajra-writer --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin vajra-writer
+
+    # Same test as FirewallManager._detect_backend: iptables-legacy needs the root-owned xtables lock
+    if command -v nft > /dev/null 2>&1; then
+        WRITER_USER=vajra-writer
+    else
+        WRITER_USER=root
+        echo -e "${YELLOW}  [WARN] No nft found: the firewall writer stays root, because iptables-legacy needs the root-owned xtables lock${NC}"
+    fi
+
+    # logs/ stays root-owned; each service only gets the files it writes, so root never meets a symlink there
+    own_file() {
+        local user=$1
+        shift
+        for path in "$@"; do
+            [ -L "$path" ] && rm -f "$path"
+            touch "$path"
+            chown "$user:$user" "$path"
+            chmod 644 "$path"
+        done
+    }
+    for f in soar_engine.log soar_actions.log ml_model_manager.log ml_predictions.json uba_engine.log uba_alerts.json packet_inspector.log packet_inspector.json unified_events.json; do
+        own_file vajra "$LOGS_DIR/$f"
     done
-    chmod 1775 "$LOGS_DIR"
+    own_file "$WRITER_USER" "$LOGS_DIR/blocked_ips.txt" "$LOGS_DIR/block_expiry.json" "$LOGS_DIR/writer.log"
+    [ -L "$LOGS_DIR/reports" ] && rm -f "$LOGS_DIR/reports"
+    mkdir -p "$LOGS_DIR/reports"
+    chown vajra:vajra "$LOGS_DIR/reports"
     chmod 2775 "$LOGS_DIR/reports"
-    for f in soar_engine.log soar_actions.log unified_events.json ml_predictions.json ml_model_manager.log packet_inspector.log packet_inspector.json uba_engine.log uba_alerts.json; do
-        if [ -e "$LOGS_DIR/$f" ]; then
-            chgrp vajra "$LOGS_DIR/$f"
-            chmod g+w "$LOGS_DIR/$f"
-        fi
-    done
     if [ -e "$LOGS_DIR/eve.json" ]; then
         chgrp vajra "$LOGS_DIR/eve.json"
         chmod g+r "$LOGS_DIR/eve.json"
     fi
 
-    install -d -m 2750 -o root -g vajra /run/vajra
+    install -d -m 2750 -o "$WRITER_USER" -g vajra /run/vajra
     WRITER_CMD="$PYTHON_CMD -m vajra.soar.writer --socket /run/vajra/writer.sock --group vajra"
     if [ "$SOAR_DRY_RUN" = "true" ]; then
         WRITER_CMD="$WRITER_CMD --dry-run"
     fi
     rm -f /run/vajra/writer.sock
-    nohup $WRITER_CMD > logs/writer.out 2>&1 &
+    if [ "$WRITER_USER" = "vajra-writer" ]; then
+        nohup env VAJRA_ALLOWLIST="$PROTECTED" setpriv --reuid=vajra-writer --regid=vajra-writer --clear-groups --bounding-set=-all,+net_admin --inh-caps=-all,+net_admin --ambient-caps=-all,+net_admin --no-new-privs -- $WRITER_CMD > logs/writer.out 2>&1 &
+    else
+        nohup env VAJRA_ALLOWLIST="$PROTECTED" $WRITER_CMD > logs/writer.out 2>&1 &
+    fi
     WRITER_PID=$!
     echo $WRITER_PID > logs/writer.pid
     for i in $(seq 1 20); do

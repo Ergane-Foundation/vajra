@@ -29,10 +29,11 @@ def main():
         ("Kafka", "kafka.Kafka"),
         ("Kafka Bridge", "vajra.pipeline.kafka_bridge"),
         ("SOAR Engine", "vajra.soar.engine"),
-        ("Firewall Writer", "vajra.soar.writer"),
         ("Unified Logger", "vajra.pipeline.unified_logger"),
         ("Packet Inspector", "vajra.inspection.packet_inspector")
     ]
+    if Path("logs/writer.pid").exists():
+        services.append(("Firewall Writer", "vajra.soar.writer"))
     
     for name, proc in services:
         status = "[OK] Running" if check_process(proc) else "[FAIL] Stopped"

@@ -104,9 +104,18 @@ writer reads the supplementary groups from `/proc/<pid>/status`.
 
 ## Privileges
 
-After it has bound the socket the writer drops every capability except
-`CAP_NET_ADMIN`. With the iptables backend it also keeps `CAP_NET_RAW`, which
+`start.sh --writer` runs the writer as the `vajra-writer` user with only
+`CAP_NET_ADMIN`, given as an ambient capability. On hosts without nft the
+writer stays root, because iptables-legacy takes the root-owned
+`/run/xtables.lock`. There, after it has bound the socket, the writer drops
+every capability except `CAP_NET_ADMIN` and `CAP_NET_RAW`, which
 iptables-legacy needs to open its tables.
+
+`logs/` stays owned by root. The writer owns only `blocked_ips.txt`,
+`block_expiry.json` and `writer.log`, which `start.sh` creates for it.
+
+The protected set comes from root through `VAJRA_ALLOWLIST`, because only root
+can see the SSH sessions of other users.
 
 ## Versioning
 

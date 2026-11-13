@@ -185,7 +185,11 @@ def prepare_socket(path: str, gid: int) -> socket.socket:
         sock.bind(path)
     finally:
         os.umask(old_umask)
-    os.chown(path, -1, gid)
+    try:
+        os.chown(path, -1, gid)
+    except PermissionError as e:
+        if os.stat(path).st_gid != gid:
+            raise SystemExit(f"Cannot give {path} to group {gid}: {e}")
     os.chmod(path, 0o660)
     sock.listen(16)
     return sock
@@ -241,7 +245,7 @@ def make_server(writer: FirewallWriter, sock: socket.socket) -> socketserver.Thr
 def drop_capabilities(keep: List[int]):
     """Drop every capability except those in keep, failing closed"""
     if os.geteuid() != 0 or sys.platform != "linux":
-        logger.info("Not root on Linux, skipping capability drop")
+        logger.info(f"Running as uid {os.geteuid()}, capabilities come from the launcher")
         return
     try:
         libc = ctypes.CDLL(None, use_errno=True)
