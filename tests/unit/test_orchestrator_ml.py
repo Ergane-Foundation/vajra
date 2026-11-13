@@ -6,12 +6,15 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from vajra.experimental.engines.orchestrator import AdvancedThreatOrchestrator
-
-from vajra.ml.manager import MLModelManager, ModelConfig
+from vajra.ml.manager import FeatureExtractor, MLModelManager, ModelConfig
 
 PACKET = {
-    "src_ip": "1.2.3.4", "dst_ip": "5.6.7.8", "src_port": 1234,
-    "dst_port": 80, "protocol": "TCP", "packet_length": 200,
+    "src_ip": "1.2.3.4",
+    "dst_ip": "5.6.7.8",
+    "src_port": 1234,
+    "dst_port": 80,
+    "protocol": "TCP",
+    "packet_length": 200,
 }
 
 
@@ -46,6 +49,17 @@ def make_manager(tmp_dir, model_types):
     return manager
 
 
+class RecordingManager:
+    def __init__(self):
+        self.received_data = []
+        self.received_data_type = []
+
+    def predict_all(self, data, data_type="network", exclude_types=None):
+        self.received_data.append(data)
+        self.received_data_type.append(data_type)
+        return {}
+
+
 class TestOrchestratorML(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -53,8 +67,11 @@ class TestOrchestratorML(unittest.TestCase):
 
     def _make(self, manager):
         o = AdvancedThreatOrchestrator(
-            enable_flowprint=False, enable_kitsune=False, enable_etbert=False,
-            enable_stratosphere=False, enable_exploit_detection=False,
+            enable_flowprint=False,
+            enable_kitsune=False,
+            enable_etbert=False,
+            enable_stratosphere=False,
+            enable_exploit_detection=False,
             enable_ml_models=False,
         )
         o.config["ml_models"] = True
@@ -73,6 +90,91 @@ class TestOrchestratorML(unittest.TestCase):
             result = orchestrator.analyze_packet(PACKET)
         self.assertIsNone(result)
         self.assertTrue(any("ML prediction error" in line for line in cm.output))
+
+    def test_ml_features_forward_packet_fields(self):
+        manager = RecordingManager()
+        orchestrator = self._make(manager)
+        packet = {
+            "src_ip": "192.168.1.50",
+            "dst_ip": "10.0.0.1",
+            "src_port": 54321,
+            "dst_port": 443,
+            "protocol": "TCP",
+            "packet_length": 512,
+            "flags": 2,
+            "ttl": 128,
+            "payload": b"malicious_payload_data",
+        }
+        orchestrator.analyze_packet(packet)
+        self.assertEqual(len(manager.received_data), 1)
+        data = manager.received_data[0]
+        self.assertEqual(data["src_ip"], "192.168.1.50")
+        self.assertEqual(data["dst_ip"], "10.0.0.1")
+        self.assertEqual(data["flags"], 2)
+        self.assertEqual(data["ttl"], 128)
+        self.assertEqual(data["payload"], b"malicious_payload_data")
+
+        # Verify extract_network_features uses these fields instead of static defaults
+        features = MLModelManager.extract_network_features(data)
+        self.assertEqual(features["src_ip"], "192.168.1.50")
+        self.assertEqual(features["dst_ip"], "10.0.0.1")
+        self.assertEqual(features["flags"], 2)
+        self.assertEqual(features["ttl"], 128)
+        self.assertEqual(features["payload_size"], len(b"malicious_payload_data"))
+
+        # Verify FeatureExtractor gives identical result
+        features_fe = FeatureExtractor.extract_network_features(data)
+        self.assertEqual(features, features_fe)
+
+    def test_ml_features_fallback_defaults_when_fields_missing(self):
+        manager = RecordingManager()
+        orchestrator = self._make(manager)
+        packet = {
+            "packet_length": 256,
+            "protocol": "UDP",
+        }
+        orchestrator.analyze_packet(packet)
+        self.assertEqual(len(manager.received_data), 1)
+        data = manager.received_data[0]
+        self.assertEqual(data["src_ip"], "")
+        self.assertEqual(data["dst_ip"], "")
+        self.assertEqual(data["flags"], 0)
+        self.assertEqual(data["ttl"], 64)
+        self.assertEqual(data["payload"], b"")
+
+        # Verify extract_network_features uses fallback defaults
+        features = MLModelManager.extract_network_features(data)
+        self.assertEqual(features["src_ip"], "")
+        self.assertEqual(features["dst_ip"], "")
+        self.assertEqual(features["flags"], 0)
+        self.assertEqual(features["ttl"], 64)
+        self.assertEqual(features["payload_size"], 0)
+
+    def test_ml_features_fallback_defaults_with_none_values(self):
+        manager = RecordingManager()
+        orchestrator = self._make(manager)
+        packet = {
+            "src_ip": None,
+            "dst_ip": None,
+            "flags": None,
+            "ttl": None,
+            "payload": None,
+        }
+        orchestrator.analyze_packet(packet)
+        self.assertEqual(len(manager.received_data), 1)
+        data = manager.received_data[0]
+        self.assertEqual(data["src_ip"], "")
+        self.assertEqual(data["dst_ip"], "")
+        self.assertEqual(data["flags"], 0)
+        self.assertEqual(data["ttl"], 64)
+        self.assertEqual(data["payload"], b"")
+
+        features = MLModelManager.extract_network_features(data)
+        self.assertEqual(features["src_ip"], "")
+        self.assertEqual(features["dst_ip"], "")
+        self.assertEqual(features["flags"], 0)
+        self.assertEqual(features["ttl"], 64)
+        self.assertEqual(features["payload_size"], 0)
 
 
     def test_insider_threat_model_is_never_run_on_packets(self):
