@@ -120,6 +120,7 @@ Options for `scripts/start.sh` and `scripts/start_macos.sh`:
 | `--dry-run` | Log SOAR block decisions without changing the firewall |
 | `--no-http` | Do not start the demo HTTP target |
 | `--no-api` | Do not start the inference API |
+| `--kafka` | Start the Kafka bridge |
 
 Environment variables:
 
@@ -156,7 +157,7 @@ python -m vajra.soar.engine --file-mode --eve path/to/eve.json --dry-run --allow
 | Event stream | 8000 | yes |
 | Inference API | 8001 | yes, `--no-api` to skip |
 | Demo HTTP target | 80, 8080 on macOS | yes, `--no-http` to skip |
-| Kafka bridge to `localhost:9092` | | yes, idle unless Kafka is running |
+| Kafka bridge to `localhost:9092` | | no, `--kafka` to start |
 
 The endpoints are described in [docs/api-reference.md](docs/api-reference.md).
 

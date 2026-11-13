@@ -131,6 +131,7 @@ ENABLE_PACKET_INSPECTION="true"  # Always enabled as requested
 ENABLE_HTTP_SERVER="true"
 SOAR_DRY_RUN="false"
 ENABLE_INFERENCE_API="true"
+ENABLE_KAFKA_BRIDGE="false"
 ML_MODELS_DIR="${ML_MODELS_DIR:-models}"
 HTTP_PORT="${HTTP_PORT:-8080}"  # Use 8080 on macOS (80 requires more permissions)
 
@@ -149,12 +150,17 @@ while [[ $# -gt 0 ]]; do
             ENABLE_INFERENCE_API="false"
             shift
             ;;
+        --kafka)
+            ENABLE_KAFKA_BRIDGE="true"
+            shift
+            ;;
         --help|-h)
             echo "Usage: sudo ./scripts/start_macos.sh [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --no-http    Skip starting HTTP server"
             echo "  --no-api     Skip starting Inference API"
+            echo "  --kafka      Start Kafka Bridge"
             echo "  --dry-run    Log SOAR block decisions without changing the firewall"
             echo "  --help       Show this help message"
             echo ""
@@ -662,17 +668,22 @@ fi
 
 # Step 8: Start Kafka Bridge (optional)
 echo ""
-echo -e "${YELLOW}[8/8] Starting Kafka Bridge...${NC}"
+if [ "$ENABLE_KAFKA_BRIDGE" = "true" ]; then
+    echo -e "${YELLOW}[8/8] Starting Kafka Bridge...${NC}"
 
-nohup $PYTHON_CMD -m vajra.pipeline.kafka_bridge > logs/bridge.out 2>&1 &
-BRIDGE_PID=$!
-echo $BRIDGE_PID > logs/bridge.pid
-sleep 1
+    nohup $PYTHON_CMD -m vajra.pipeline.kafka_bridge > logs/bridge.out 2>&1 &
+    BRIDGE_PID=$!
+    echo $BRIDGE_PID > logs/bridge.pid
+    sleep 1
 
-if ps -p $BRIDGE_PID > /dev/null 2>&1; then
-    echo -e "${GREEN}  [OK] Kafka Bridge started (PID: $BRIDGE_PID)${NC}"
+    if ps -p $BRIDGE_PID > /dev/null 2>&1; then
+        echo -e "${GREEN}  [OK] Kafka Bridge started (PID: $BRIDGE_PID)${NC}"
+    else
+        echo -e "${YELLOW}  [WARN] Kafka Bridge not running (Kafka may not be available)${NC}"
+    fi
 else
-    echo -e "${YELLOW}  [WARN] Kafka Bridge not running (Kafka may not be available)${NC}"
+    rm -f logs/bridge.pid
+    echo -e "${YELLOW}[8/8] Kafka Bridge skipped (pass --kafka to enable)${NC}"
 fi
 
 # Step 8: Check ML Models
