@@ -62,10 +62,30 @@ ATTACKS = {
 # http.uri is the decoded URI, so content that looks for percent encoding never matches
 NEVER_MATCH = {2000002: "#93", 2000011: "#93", 2000021: "#93"}
 
-# These count packets over time; their cases come with the rewrites in #90, #91 and #92
-PENDING = {2000040, 2000041, 2000042, 2000043, 2000050, 2000051, 2000052, 2000053, 2000060, 2000061, 2000062}
+# Rules that count traffic from one source over a few seconds. The UDP and HTTP flood rules match once per
+# flow, so they count new UDP flows and new HTTP connections, not packets.
+REPEATED = {
+    2000040: packets.probes(ATTACKER, range(1, 101), "S"),
+    2000041: packets.probes(ATTACKER, range(1, 101), "F"),
+    2000042: packets.probes(ATTACKER, range(1, 101), "FPU"),
+    2000043: packets.probes(ATTACKER, range(1, 101), ""),
+    2000050: packets.probes(ATTACKER, [80] * 150, "S"),
+    2000051: packets.udp_stream(ATTACKER, 300, 9999, gap=0.002, new_port_each=True),
+    2000052: packets.pings(ATTACKER, 100, gap=0.005),
+    2000053: packets.repeated(lambda start: packets.http(ATTACKER, "/", start=start), 40, 0.02),
+    2000060: packets.repeated(lambda start: packets.ssh(ATTACKER, start=start), 5, 2.0),
+    2000061: packets.repeated(
+        lambda start: packets.tcp_session(ATTACKER, packets.SERVER, 21, b"USER root\r\n", b"220 ready\r\n", start),
+        5,
+        2.0,
+    ),
+    2000062: packets.repeated(
+        lambda start: packets.tcp_session(ATTACKER, packets.SERVER, 3389, bytes(19), bytes(19), start), 5, 2.0
+    ),
+}
 
-# Normal traffic: (name, packets, protocol Suricata must parse, alerts it raises today and the issue fixing them)
+# Normal traffic: (name, packets, protocol Suricata must parse if it has a parser, alerts it raises today
+# and the issue fixing them)
 BENIGN = [
     ("home page", packets.http(VISITOR, "/"), "http", {}),
     ("search", packets.http(VISITOR, "/search?q=network+security+tools&page=2"), "http", {}),
@@ -95,6 +115,29 @@ BENIGN = [
     ),
     ("ssh connection", packets.ssh(VISITOR), "ssh", {}),
     ("dns lookup", packets.dns(VISITOR, "www.example.com.", "93.184.215.14"), "dns", {}),
+    ("ping", packets.pings(VISITOR, 4, gap=1.0), None, {}),
+    (
+        "three page loads of six connections",
+        packets.repeated(lambda start: packets.http(VISITOR, "/", start=start), 18, 0.12),
+        "http",
+        {2000040: "#90", 2000053: "#92"},
+    ),
+    (
+        "ansible opening three ssh connections",
+        packets.repeated(lambda start: packets.ssh(VISITOR, start=start), 3, 5.0),
+        "ssh",
+        {2000060: "#91"},
+    ),
+    ("300 KB upload", packets.http(VISITOR, "/upload", method="POST", body=bytes(300_000)), "http", {}),
+    ("wireguard peer", packets.udp_stream(VISITOR, 400, 51820, gap=0.004), None, {}),
+    (
+        "dns client sending 250 lookups in 2 seconds",
+        packets.repeated(
+            lambda start: packets.dns(VISITOR, "www.example.com.", "93.184.215.14", start=start), 250, 0.008
+        ),
+        "dns",
+        {2000051: "#92"},
+    ),
 ]
 
 
@@ -115,7 +158,7 @@ def replay(traffic, workdir):
             pytest.fail("suricata is not installed")
         pytest.skip("suricata is not installed")
     pcap = workdir / "traffic.pcap"
-    wrpcap(str(pcap), traffic)
+    wrpcap(str(pcap), sorted(traffic, key=lambda packet: packet.time))
     result = subprocess.run(
         [
             suricata,
@@ -146,8 +189,8 @@ def alerts(events):
 
 def test_every_rule_has_an_attack_case():
     sids = rule_sids()
-    assert sids - set(ATTACKS) - PENDING == set(), "add an attack case to ATTACKS for these rules"
-    assert set(ATTACKS) | PENDING <= sids, "these cases are for rules that no longer exist"
+    assert sids - set(ATTACKS) - set(REPEATED) == set(), "add an attack case for these rules"
+    assert set(ATTACKS) | set(REPEATED) <= sids, "these cases are for rules that no longer exist"
 
 
 @pytest.mark.parametrize(
@@ -156,17 +199,19 @@ def test_every_rule_has_an_attack_case():
         pytest.param(sid, marks=pytest.mark.xfail(strict=True, reason=f"never matches, {NEVER_MATCH[sid]}"))
         if sid in NEVER_MATCH
         else sid
-        for sid in ATTACKS
+        for sid in [*ATTACKS, *REPEATED]
     ],
 )
 def test_rule_alerts_on_its_attack(sid, tmp_path):
-    assert sid in alerts(replay(packets.http(ATTACKER, ATTACKS[sid]), tmp_path))
+    traffic = REPEATED[sid] if sid in REPEATED else packets.http(ATTACKER, ATTACKS[sid])
+    assert sid in alerts(replay(traffic, tmp_path))
 
 
 @pytest.mark.parametrize("name, traffic, protocol, known", BENIGN, ids=[case[0] for case in BENIGN])
 def test_normal_traffic_does_not_alert(name, traffic, protocol, known, tmp_path):
     events = replay(traffic, tmp_path)
-    assert any(e.get("app_proto") == protocol for e in events if e.get("event_type") == "flow"), (
-        f"Suricata didn't parse the traffic as {protocol}"
-    )
+    flows = [e for e in events if e.get("event_type") == "flow"]
+    assert flows, "Suricata saw no traffic"
+    if protocol:
+        assert any(e.get("app_proto") == protocol for e in flows), f"Suricata didn't parse the traffic as {protocol}"
     assert alerts(events) == set(known)
