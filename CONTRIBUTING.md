@@ -39,6 +39,7 @@ The repository has these parts:
 | `rules/`, `config/suricata/` | Suricata rules and configuration |
 | `scripts/` | Install, start, stop and status scripts |
 | `native/dpdk/` | DPDK packet processor in C++ (does not build yet) |
+| `tests/rules/` | Generated attack and normal traffic replayed through the rules |
 | `tests/perf/` | Resource-consumption and load test harnesses |
 | `tools/` | Attack simulator, live monitor and other developer tools |
 
@@ -54,6 +55,11 @@ make test
 
 CI runs the same lint and tests on every pull request, on Python 3.10 and 3.12.
 Lint only checks for syntax errors and undefined names for now.
+
+A new rule in `rules/local.rules` needs an attack case in
+`tests/rules/test_local_rules.py` that makes it alert, and it must stay quiet on
+the normal traffic there. Those tests read pcaps with Suricata 8 and are skipped
+when `suricata` isn't installed; CI runs them in a separate job.
 
 The SOAR engine can replay a Suricata `eve.json` file in dry-run mode, which
 logs every decision without touching the firewall:
