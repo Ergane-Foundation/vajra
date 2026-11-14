@@ -4,8 +4,8 @@
 # Installs all dependencies for the Vajra
 #
 # Usage:
-#   sudo ./scripts/install.sh           # Full installation
-#   sudo ./scripts/install.sh --minimal # Skip Kafka, just basic deps
+#   sudo ./scripts/install.sh           # Default installation (skips Kafka)
+#   sudo ./scripts/install.sh --kafka   # Also install Java and Kafka
 #   sudo ./scripts/install.sh --help    # Show help
 #
 
@@ -21,25 +21,32 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-MINIMAL_INSTALL="false"
+INSTALL_KAFKA="false"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --kafka)
+            INSTALL_KAFKA="true"
+            shift
+            ;;
         --minimal)
-            MINIMAL_INSTALL="true"
+            INSTALL_KAFKA="false"
             shift
             ;;
         --help|-h)
             echo "Usage: sudo ./scripts/install.sh [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --minimal  Skip Kafka installation (basic setup only)"
+            echo "  --kafka    Install Java and Kafka into /opt/kafka"
+            echo "  --minimal  Skip Kafka installation (default; kept for compatibility)"
             echo "  --help     Show this help message"
             exit 0
             ;;
         *)
-            shift
+            echo "Unknown option: $1"
+            echo "Run: ./scripts/install.sh --help"
+            exit 1
             ;;
     esac
 done
@@ -184,7 +191,7 @@ suricata-update 2>/dev/null || echo -e "${YELLOW}  [WARN] suricata-update not av
 
 # Step 4: Install Kafka (Optional)
 echo ""
-if [ "$MINIMAL_INSTALL" = "false" ]; then
+if [ "$INSTALL_KAFKA" = "true" ]; then
     echo -e "${YELLOW}[4/7] Installing Kafka (optional, for distributed mode)...${NC}"
     
     # Install Java first
@@ -222,7 +229,7 @@ if [ "$MINIMAL_INSTALL" = "false" ]; then
         echo -e "${GREEN}  [OK] Kafka already installed at $KAFKA_DIR${NC}"
     fi
 else
-    echo -e "${YELLOW}[4/7] Skipping Kafka (--minimal mode)${NC}"
+    echo -e "${YELLOW}[4/7] Skipping Kafka (pass --kafka to install)${NC}"
 fi
 
 # Step 5: Setup Python Virtual Environment
