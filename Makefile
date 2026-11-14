@@ -17,7 +17,7 @@ endif
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-10s %s\n", $$1, $$2}'
 
-install: ## Install system packages (Suricata, Kafka); requires sudo
+install: ## Install Suricata and system packages; requires sudo
 	sudo ./scripts/install.sh
 
 setup: ## Create the virtualenv and install vajra in editable mode with dev tools
