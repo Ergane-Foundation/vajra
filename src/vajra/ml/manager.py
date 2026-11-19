@@ -96,16 +96,21 @@ class FeatureExtractor:
     @staticmethod
     def extract_network_features(packet_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract features from network packet data"""
+        payload = packet_data.get('payload')
+        ttl = packet_data.get('ttl')
+        flags = packet_data.get('flags')
+        if flags is None:
+            flags = packet_data.get('tcp_flags')
         return {
-            'src_ip': packet_data.get('src_ip', ''),
-            'dst_ip': packet_data.get('dst_ip', ''),
+            'src_ip': packet_data.get('src_ip') or '',
+            'dst_ip': packet_data.get('dst_ip') or '',
             'src_port': packet_data.get('src_port', 0),
             'dst_port': packet_data.get('dst_port', 0),
             'protocol': packet_data.get('protocol', 0),
             'packet_size': packet_data.get('size', 0),
-            'flags': packet_data.get('flags', 0),
-            'ttl': packet_data.get('ttl', 64),
-            'payload_size': len(packet_data.get('payload', b'')),
+            'flags': flags if flags is not None else 0,
+            'ttl': ttl if ttl is not None else 64,
+            'payload_size': len(payload) if payload is not None else 0,
             'timestamp': packet_data.get('timestamp', 0),
         }
     
@@ -216,6 +221,8 @@ class MLModelManager:
     - Thread-safe operations
     - Combined logging with Suricata alerts
     """
+    
+    extract_network_features = staticmethod(FeatureExtractor.extract_network_features)
     
     def __init__(self, models_dir: str = "models", log_file: str = "logs/ml_predictions.json"):
         self.models_dir = Path(models_dir)

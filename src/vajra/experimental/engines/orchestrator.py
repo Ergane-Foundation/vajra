@@ -309,6 +309,11 @@ class AdvancedThreatOrchestrator:
     def _extract_ml_features(self, packet_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Extract features for ML models"""
         try:
+            payload = packet_data.get('payload')
+            ttl = packet_data.get('ttl')
+            flags = packet_data.get('flags')
+            if flags is None:
+                flags = packet_data.get('tcp_flags')
             return {
                 'packet_length': packet_data.get('packet_length', 0),
                 'protocol': packet_data.get('protocol', 'TCP'),
@@ -316,6 +321,11 @@ class AdvancedThreatOrchestrator:
                 'src_port': packet_data.get('src_port', 0),
                 'timestamp': packet_data.get('timestamp', time.time()),
                 'size': packet_data.get('packet_length', 0),
+                'src_ip': packet_data.get('src_ip') or '',
+                'dst_ip': packet_data.get('dst_ip') or '',
+                'flags': flags if flags is not None else 0,
+                'ttl': ttl if ttl is not None else 64,
+                'payload': payload if payload is not None else b'',
             }
         except Exception:
             return None
